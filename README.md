@@ -1,1 +1,1 @@
-# django-twitter
+# django-twitter第一课：初始化vagrant
