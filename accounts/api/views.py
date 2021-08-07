@@ -50,7 +50,7 @@ class AccountViewSet(viewsets.ViewSet):
             'success': True,
             # 这里不能用SignupSerializer，会把password也返回
             'user': UserSerializer(user).data,
-        })
+        }, status=201)    # 返回201更准确，也可以返回200
 
     @action(methods=['GET'], detail=False)
     def login_status(self, request):
@@ -96,5 +96,5 @@ class AccountViewSet(viewsets.ViewSet):
         return Response({
             "success": True,
             "user": UserSerializer(instance=user).data,
-        }, status=201) # 返回201更准确，也可以返回200
+        }, status=200)
 
