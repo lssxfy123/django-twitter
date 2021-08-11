@@ -23,6 +23,7 @@ import debug_toolbar
 
 router = routers.DefaultRouter()
 router.register(r'api/users', views.UserViewSet)
+# basename必须设置，因为AccountViewSet没有设置queryset属性
 router.register(r'api/accounts', views.AccountViewSet, basename='accounts')
 
 urlpatterns = [
