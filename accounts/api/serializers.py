@@ -6,7 +6,14 @@ from rest_framework import exceptions
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email']
+        fields = ['id', 'username', 'email']
+
+
+# 针对不同的需求，设置不同的serializer
+class UserSerializerForTweet(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username']
 
 
 # 检测username, password是否存在

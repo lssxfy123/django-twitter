@@ -18,6 +18,13 @@ class Tweet(models.Model):
     # 创建Tweet对象时自动添加当前日期，并不再变化
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        # 书写格式是将需要联合索引的字段组成一个二元组
+        # 后面要加一个逗号，表示可能会有其它联合索引
+        index_together = (('user', 'created_at'),)
+        # 指定排序规则，user_id升序，created_at降序
+        ordering = ('user', '-created_at')
+
     @property
     def hours_to_now(self):
         """
