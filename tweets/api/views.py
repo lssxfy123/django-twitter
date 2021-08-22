@@ -1,12 +1,9 @@
 from rest_framework import viewsets
+from rest_framework.views import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from  rest_framework.response import Response
+from rest_framework.response import Response
 from tweets.models import Tweet
 from tweets.api.serializers import TweetSerializer, TweetCreateSerializer
-
-
-"""
-"""
 
 
 class TweetViewSet(viewsets.GenericViewSet,
@@ -31,7 +28,9 @@ class TweetViewSet(viewsets.GenericViewSet,
         """
         # query_params就是url中参数
         if 'user_id' not in request.query_params:
-            return Response('missing user_id', status=400)
+            return Response(
+                'missing user_id',
+                status=status.HTTP_400_BAD_REQUEST)
 
         """
         查找指定user_id的Tweets，并且按created_at降序排列
@@ -58,9 +57,11 @@ class TweetViewSet(viewsets.GenericViewSet,
                 'success': False,
                 'message': 'Please check input.',
                 'errors': serializer.errors,
-            }, status=400)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # 会调用TweetCreateSerializer中的create()
         tweet = serializer.save()
         # 展示创建后的tweet时，用TweetSerialzier
-        return Response(TweetSerializer(instance=tweet).data, status=201)
+        return Response(
+            TweetSerializer(instance=tweet).data,
+            status=status.HTTP_201_CREATED)

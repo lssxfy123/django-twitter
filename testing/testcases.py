@@ -7,9 +7,11 @@ class TestCase(DjangoTestCase):
     """
     将测试中使用的一些公共方法抽取到一个公共类中
     """
-    def create_user(self, username, email, password=None):
+    def create_user(self, username, email=None, password=None):
         if password is None:
             password = "generic password"
+        if email is None:
+            email = '{}@jiuzhang.com'.format(username)
         # 不能使用User.objects.create()
         # 因为password需要被加密，username和email需要normalize处理
         return User.objects.create_user(

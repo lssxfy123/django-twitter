@@ -1,4 +1,5 @@
 from rest_framework.test import APIClient
+from rest_framework.views import status
 from testing.testcases import TestCase
 
 
@@ -33,14 +34,16 @@ class AccountApiTest(TestCase):
         })
 
         # 登陆失败，status code 返回405
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED)
 
         # 用了post，但密码错误
         response = self.client.post(LOGIN_URL, {
             "username": self.user.username,
             "password": "wrong password",
         })
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # 验证还没有登陆
         response = self.client.get(LOGIN_STATUS_URL)
@@ -51,7 +54,7 @@ class AccountApiTest(TestCase):
             "username": self.user.username,
             "password": "correct password"
         })
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.data["user"], None)
         self.assertEqual(response.data["user"]["email"], "admin@jiuzhang.com")
 
@@ -64,7 +67,7 @@ class AccountApiTest(TestCase):
             'username': 'notexists',
             "password": 'correct password'
         })
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(str(response.data["errors"]["username"][0]),
                          'User does not exist.')
 
@@ -80,11 +83,13 @@ class AccountApiTest(TestCase):
 
         # 测试必须用 post
         response = self.client.get(LOGOUT_URL)
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED)
 
         # 改用 post 成功 logout
         response = self.client.post(LOGOUT_URL)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         # 验证用户已经登出
         response = self.client.get(LOGIN_STATUS_URL)
         self.assertEqual(response.data['has_logged_in'], False)
@@ -97,7 +102,9 @@ class AccountApiTest(TestCase):
         }
         # 测试 get 请求失败
         response = self.client.get(SIGNUP_URL, data)
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED)
 
         # 测试错误的邮箱
         response = self.client.post(SIGNUP_URL, {
@@ -106,7 +113,7 @@ class AccountApiTest(TestCase):
             'password': 'any password'
         })
         # print(response.data)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # 测试密码太短
         response = self.client.post(SIGNUP_URL, {
@@ -115,7 +122,7 @@ class AccountApiTest(TestCase):
             'password': '123',
         })
         # print(response.data)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # 测试用户名太长
         response = self.client.post(SIGNUP_URL, {
@@ -124,11 +131,11 @@ class AccountApiTest(TestCase):
             'password': 'any password',
         })
         # print(response.data)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # 成功注册
         response = self.client.post(SIGNUP_URL, data)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['user']['username'], 'someone')
         # 验证用户已经登入
         response = self.client.get(LOGIN_STATUS_URL)

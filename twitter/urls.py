@@ -19,6 +19,7 @@ from django.urls import include, path
 from rest_framework import routers
 from accounts.api import views
 from tweets.api.views import TweetViewSet
+from friendships.api.views import FriendshipViewSet
 
 import debug_toolbar
 
@@ -27,11 +28,14 @@ router.register(r'api/users', views.UserViewSet)
 # basename必须设置，因为AccountViewSet没有设置queryset属性
 router.register(r'api/accounts', views.AccountViewSet, basename='accounts')
 router.register(r'api/tweets', TweetViewSet, basename='tweets')
+router.register(r'api/friendships', FriendshipViewSet, basename='friendships')
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include(router.urls)),
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('api-auth/', include(
+        'rest_framework.urls',
+        namespace='rest_framework')),
     path('__debug__/', include(debug_toolbar.urls)),
 ]

@@ -1,6 +1,5 @@
-from django.contrib.auth.models import User, Group
-from django.shortcuts import render
-from rest_framework import viewsets
+from django.contrib.auth.models import User
+from rest_framework import viewsets, status
 from rest_framework import permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -39,7 +38,7 @@ class AccountViewSet(viewsets.ViewSet):
                 "success": False,
                 "message": "Please check input.",
                 "errors": serializer.errors,
-            }, status=400)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # 创建用户并保存，会调用SignupSerializer中的create
         user = serializer.save()
@@ -50,7 +49,7 @@ class AccountViewSet(viewsets.ViewSet):
             'success': True,
             # 这里不能用SignupSerializer，会把password也返回
             'user': UserSerializer(user).data,
-        }, status=201)    # 返回201更准确，也可以返回200
+        }, status=status.HTTP_201_CREATED)    # 返回201更准确，也可以返回200
 
     @action(methods=['GET'], detail=False)
     def login_status(self, request):
@@ -76,7 +75,7 @@ class AccountViewSet(viewsets.ViewSet):
                 "success": False,
                 "message": "Please check input.",
                 "errors": serializer.errors,
-            }, status=400)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         username = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
@@ -86,18 +85,18 @@ class AccountViewSet(viewsets.ViewSet):
             return Response({
                 "success": False,
                 "message": "User does not exists."
-            }, status=400)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         user = django_authenticate(username=username, password=password)
         if not user or user.is_anonymous:
             return Response({
                 "success": False,
                 "message": "username and password does not match.",
-            }, status=400)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         django_login(request, user)
         return Response({
             "success": True,
             "user": UserSerializer(instance=user).data,
-        }, status=200)
+        }, status=status.HTTP_200_OK)
 

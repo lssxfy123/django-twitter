@@ -16,6 +16,11 @@ class UserSerializerForTweet(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'username']
 
 
+# 和UserSerializerForTweet内容相同，取了一个别名
+class UserSerializerForFriendship(UserSerializerForTweet):
+    pass
+
+
 # 检测username, password是否存在
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
