@@ -1,5 +1,6 @@
 from testing.testcases import TestCase
 from rest_framework.test import APIClient
+from rest_framework.views import status
 from tweets.models import Tweet
 
 
@@ -26,12 +27,12 @@ class TweetApiTests(TestCase):
     def test_list_api(self):
         # 必须带有user_id
         response = self.anonymous_client.get(TWEET_LIST_API)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # 正常的requeset
         response = self.anonymous_client.get(TWEET_LIST_API, {
             'user_id': self.user1.id})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['tweets']), 3)
 
         response = self.anonymous_client.get(TWEET_LIST_API, {
@@ -46,26 +47,26 @@ class TweetApiTests(TestCase):
     def test_create_api(self):
         # 发tweet必须登陆
         response = self.anonymous_client.post(TWEET_CREATE_API)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # 必须带content
         response = self.user1_client.post(TWEET_CREATE_API)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # content不能太短
         response = self.user1_client.post(TWEET_CREATE_API, {'content': '1'})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # content不能太长
         response = self.user1_client.post(TWEET_CREATE_API, {
             'content': '0' * 141})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # 正常发tweet
         tweets_count = Tweet.objects.count()
         response = self.user1_client.post(TWEET_CREATE_API, {
             'content': 'Hello World, this is my first tweet!'})
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         # user1_client强制使用user1的信息验证
         self.assertEqual(response.data['user']['id'], self.user1.id)
         self.assertEqual(Tweet.objects.count(), tweets_count + 1)
