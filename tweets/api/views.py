@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from tweets.models import Tweet
 from tweets.api.serializers import TweetSerializer, TweetCreateSerializer
+from newsfeeds.services import NewsFeedService
 
 
 class TweetViewSet(viewsets.GenericViewSet,
@@ -61,6 +62,10 @@ class TweetViewSet(viewsets.GenericViewSet,
 
         # 会调用TweetCreateSerializer中的create()
         tweet = serializer.save()
+        # 采用push模式，fanout写扩散
+        # 当用户发tweet时，把相关的tweet写入到关注他的用户的newsfeed table中
+        # 这类方法一般都是放到一个service类中，比较耗时
+        NewsFeedService.fanout_to_followers(tweet)
         # 展示创建后的tweet时，用TweetSerialzier
         return Response(
             TweetSerializer(instance=tweet).data,
