@@ -23,6 +23,28 @@ class FriendshipViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = FriendshipSerializerForCreate
 
+    def list(self, request):
+        if 'to_user_id' in request.query_params:
+            friendships = Friendship.objects\
+                .filter(to_user_id=request.query_params['to_user_id'])
+            serializer = FollowerSerializer(friendships, many=True)
+            return Response({
+                'followers': serializer.data
+            })
+
+        if 'from_user_id' in request.query_params:
+            friendships = Friendship.objects\
+                .filter(from_user_id=request.query_params['from_user_id'])
+            serializer = FollowingSerializer(friendships, many=True)
+            return Response({
+                'followings': serializer.data
+            })
+
+        return Response(
+            "missing to_user_id or from_user_id",
+            status.HTTP_400_BAD_REQUEST
+        )
+
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
     def followers(self, request, pk):
         """
