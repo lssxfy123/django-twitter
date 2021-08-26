@@ -16,7 +16,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
     我们希望POST /api/friendship/1/follow是取follow user_id=1的用户
     因此这里queryset需要是User.objects.all()
     如果设置为Friendship.objects.all()，就会返回404
-    因为follow()中action的参数detail=True会默认先去调用get_object
+    因为follow()中会调用get_object()方法去验证user_id=1的用户是否存在
     也就是queryset.filter(pk=1)查询一下这个object是否存在
     pk就是PrimaryKey的简写
     """
