@@ -91,7 +91,7 @@ class FriendshipViewSet(viewsets.GenericViewSet):
                 'duplicate': True,
             }, status=status.HTTP_201_CREATED)
 
-        # 这里不能直接data=request.data，之前的SignupSerializer可以这样yoga
+        # 这里不能直接data=request.data，之前的SignupSerializer可以这样用
         # 是因为其使用的参数是django rest_framework中自带的
         # 而FriendshipSerializerForCreate使用的参数是自定义的
         serializer = FriendshipSerializerForCreate(data={
