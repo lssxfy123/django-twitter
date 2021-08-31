@@ -21,6 +21,7 @@ from accounts.api import views
 from tweets.api.views import TweetViewSet
 from friendships.api.views import FriendshipViewSet
 from newsfeeds.api.views import NewsFeedViewSet
+from comments.api.views import CommentViewSet
 
 import debug_toolbar
 
@@ -31,6 +32,7 @@ router.register(r'api/accounts', views.AccountViewSet, basename='accounts')
 router.register(r'api/tweets', TweetViewSet, basename='tweets')
 router.register(r'api/friendships', FriendshipViewSet, basename='friendships')
 router.register(r'api/newsfeeds', NewsFeedViewSet, basename='newsfeeds')
+router.register(r'api/comments', CommentViewSet, basename='comments')
 
 
 urlpatterns = [
