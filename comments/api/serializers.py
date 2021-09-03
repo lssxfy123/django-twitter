@@ -15,7 +15,9 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class CommentSerializerForCreate(serializers.ModelSerializer):
     # 这两项必须手动添加，
-    # 因为默认ModelSerializer只会自动包含user和tweet，而不是user_id和tweet_id
+    # 因为默认ModelSerializer中的user_id和tweet_id都是只读字段
+    # 创建时validate()的data参数和create()的validated_data都不包含这两个字段
+    # 它们只包含可写字段
     user_id = serializers.IntegerField()
     tweet_id = serializers.IntegerField()
 
