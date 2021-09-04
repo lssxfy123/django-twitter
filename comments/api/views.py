@@ -13,6 +13,8 @@ from comments.models import Comment
 class CommentViewSet(viewsets.GenericViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializerForCreate
+    # 定义筛选字段
+    filterset_fields = ('tweet_id',)
 
     def get_permissions(self):
         if self.action == 'create':
@@ -26,6 +28,30 @@ class CommentViewSet(viewsets.GenericViewSet):
         if self.action in ['update', 'destroy']:
             return [IsAuthenticated(), IsObjectOwner()]
         return [AllowAny()]
+
+    def list(self, request, *args, **kwargs):
+        if 'tweet_id' not in request.query_params:
+            return Response({
+                "success": False,
+                "message": "missing tweet_id in request",
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 第一种筛选方式
+        # tweet_id = request.query_params["tweet_id"]
+        # comments = Comment.objects.filter(tweet=tweet_id)
+
+        # 可以自定义get_queryset()
+        queryset = self.get_queryset()
+        # 在runserver后台可以看到如果不加prefetch_related
+        # comments有多少条，就会执行多少条SELECT去获取user_id
+        # 加上后只会执行1条In Query查询
+        comments = self.filter_queryset(queryset) \
+            .prefetch_related('user').order_by('created_at')
+        serializer = CommentSerializer(comments, many=True)
+        return Response(
+            {"comments": serializer.data},
+            status=status.HTTP_200_OK
+        )
 
     def create(self, request):
         data = {
