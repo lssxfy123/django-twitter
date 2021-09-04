@@ -3,8 +3,13 @@ from rest_framework.views import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from tweets.models import Tweet
-from tweets.api.serializers import TweetSerializer, TweetCreateSerializer
+from tweets.api.serializers import (
+    TweetSerializer,
+    TweetCreateSerializer,
+    TweetSerializerWithComments,
+)
 from newsfeeds.services import NewsFeedService
+from util.decorators import required_params
 
 
 class TweetViewSet(viewsets.GenericViewSet,
@@ -19,20 +24,15 @@ class TweetViewSet(viewsets.GenericViewSet,
         获取权限许可：AlloAny()表示允许任何访问权限
         IsAuthenticated表示需要登陆
         """
-        if self.action == 'list':
+        if self.action in ['list', 'retrieve']:
             return [AllowAny()]
         return [IsAuthenticated()]
 
+    """
+    重载list方法，不列出所有tweets，必须指定user_id
+    """
+    @required_params(params=['user_id'])
     def list(self, request, *args, **kwargs):
-        """
-        重载list方法，不列出所有tweets，必须指定user_id
-        """
-        # query_params就是url中参数
-        if 'user_id' not in request.query_params:
-            return Response(
-                'missing user_id',
-                status=status.HTTP_400_BAD_REQUEST)
-
         """
         查找指定user_id的Tweets，并且按created_at降序排列
         相当于sql
@@ -46,6 +46,10 @@ class TweetViewSet(viewsets.GenericViewSet,
         # 每个dict都是一条tweet的序列化数据
         serializer = TweetSerializer(tweets, many=True)
         return Response({'tweets': serializer.data})
+
+    def retrieve(self, request, *args, **kwargs):
+        tweet = self.get_object()
+        return Response(TweetSerializerWithComments(tweet).data)
 
     def create(self, request, *args, **kwargs):
         serializer = TweetCreateSerializer(
