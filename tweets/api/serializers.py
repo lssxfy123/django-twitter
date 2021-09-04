@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from tweets.models import Tweet
-from django.contrib.auth.models import User
+from comments.api.serializers import CommentSerializer
 from accounts.api.serializers import UserSerializerForTweet
 
 
@@ -10,6 +10,17 @@ class TweetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tweet
         fields = ('id', 'user', 'created_at', 'content')
+
+
+class TweetSerializerWithComments(serializers.ModelSerializer):
+    user = UserSerializerForTweet()
+    # Tweet是Comment的外键，django中允许tweet.comment_set来访问tweet对应
+    # 的所有comments，所以在serializer中用source进行指定来源
+    comments = CommentSerializer(source='comment_set', many=True)
+
+    class Meta:
+        model = Tweet
+        fields = ('id', 'user', 'comments', 'created_at', 'content')
 
 
 class TweetCreateSerializer(serializers.ModelSerializer):
