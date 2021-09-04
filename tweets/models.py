@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from util.time_helpers import utc_now
+from likes.models import Like
+from django.contrib.contenttypes.models import ContentType
 
 
 # 在mysql数据库中存储的表为tweets_tweet
@@ -32,6 +34,17 @@ class Tweet(models.Model):
         datetime.now()没有时区信息
         """
         return (utc_now() - self.created_at).seconds // 3600
+
+    @property
+    def like_set(self):
+        """
+        Tweet是Like的外键，django的反向查询机制，tweet.like_set就是查询tweet
+        对应的所有like
+        """
+        return Like.objects.filter(
+            content_type=ContentType.objects.get_for_model(Tweet),
+            object_id=self.id,
+        ).order_by('-created_at')
 
     # 打印Tweet的对象时，显示的内容
     # user, created_at, content都是类的属性
