@@ -15,7 +15,7 @@ class LikeSerializer(serializers.ModelSerializer):
         fields = ('user', 'created_at')
 
 
-class LikeSerializerForCreate(serializers.ModelSerializer):
+class BaseLikeSerializerForCreateAndCancel(serializers.ModelSerializer):
     object_id = serializers.IntegerField()
     # choices可以和前端约定写什么
     content_type = serializers.ChoiceField(choices=['tweet', 'comment'])
@@ -44,6 +44,9 @@ class LikeSerializerForCreate(serializers.ModelSerializer):
             })
         return data
 
+
+class LikeSerializerForCreate(BaseLikeSerializerForCreateAndCancel):
+
     def create(self, validated_data):
         model_class = self._get_model_class(validated_data)
         instance, _ = Like.objects.get_or_create(
@@ -53,3 +56,25 @@ class LikeSerializerForCreate(serializers.ModelSerializer):
         )
         return instance
 
+
+class LikeSerializerForCancel(BaseLikeSerializerForCreateAndCancel):
+
+    def cancel(self):
+        """
+        cancel 方法是一个自定义的方法，cancel 不会被 serializer.save 调用
+        所以需要直接调用 serializer.cancel()
+        """
+        model_class = self._get_model_class(self.validated_data)
+        """
+        这个删除其实不一定会成功，因为取消点赞并没有等待点赞成功之后再进行，
+        所以like对象不一定存在于数据库中，不过也不需要进行验证，因为取消不成功也
+        没关系，可以容忍这种不成功，前端页面可以显示为成功取消了
+        也可以在缓存中记录cancel，等create到来时，可以在缓存中查找是否cancel，如果
+        cancel了就直接不创建了
+        """
+        deleted, _ = Like.objects.filter(
+            content_type=ContentType.objects.get_for_model(model_class),
+            object_id=self.validated_data['object_id'],
+            user=self.context['request'].user,
+        ).delete()
+        return deleted
