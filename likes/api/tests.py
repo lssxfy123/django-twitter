@@ -2,6 +2,7 @@ from testing.testcases import TestCase
 from rest_framework import status
 
 LIKE_BASE_URL = '/api/likes/'
+LIKE_CANCEL_URL = '/api/likes/cancel/'
 
 
 class LikeApiTests(TestCase):
@@ -80,3 +81,66 @@ class LikeApiTests(TestCase):
         self.assertEqual(comment.like_set.count(), 1)
         self.dongxie_client.post(LIKE_BASE_URL, data)
         self.assertEqual(comment.like_set.count(), 2)
+
+    def test_cancel(self):
+        tweet = self.create_tweet(self.linghu)
+        comment = self.create_comment(self.dongxie, tweet)
+        like_comment_data = {'content_type': 'comment', 'object_id': comment.id}
+        like_tweet_data = {'content_type': 'tweet', 'object_id': tweet.id}
+
+        self.linghu_client.post(LIKE_BASE_URL, like_comment_data)
+        self.dongxie_client.post(LIKE_BASE_URL, like_tweet_data)
+        self.assertEqual(comment.like_set.count(), 1)
+        self.assertEqual(tweet.like_set.count(), 1)
+
+        # 匿名用户不能cancel
+        response = self.anonymous_client.post(
+            LIKE_CANCEL_URL,
+            like_comment_data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 不允许get
+        response = self.linghu_client.get(LIKE_CANCEL_URL, like_comment_data)
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # 错误的content_type
+        response = self.linghu_client.post(LIKE_CANCEL_URL, {
+            'content_type': 'wrong',
+            'object_id': 1,
+             }
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # 错误的object_id
+        response = self.linghu_client.post(LIKE_CANCEL_URL, {
+            'content_type': 'comment',
+            'object_id': -1,
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # 之前没有点赞某条评论，取消点赞
+        response = self.dongxie_client.post(LIKE_CANCEL_URL, like_comment_data)
+        # 静默处理，即使之前没有点赞，取消点赞也返回200
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(tweet.like_set.count(), 1)
+        self.assertEqual(comment.like_set.count(), 1)
+
+        # 成功取消
+        response = self.linghu_client.post(LIKE_CANCEL_URL, like_comment_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(comment.like_set.count(), 0)
+        self.assertEqual(tweet.like_set.count(), 1)
+
+        # 之前没点赞某条tweet，取消点赞
+        response = self.linghu_client.post(LIKE_CANCEL_URL, like_tweet_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(comment.like_set.count(), 0)
+        self.assertEqual(tweet.like_set.count(), 1)
+
+        # 取消点赞成功
+        response = self.dongxie_client.post(LIKE_CANCEL_URL, like_tweet_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(comment.like_set.count(), 0)
+        self.assertEqual(tweet.like_set.count(), 0)
