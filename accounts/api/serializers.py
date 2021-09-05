@@ -24,7 +24,13 @@ class UserSerializerForFriendship(UserSerializerForTweet):
 class UserSerializerForComment(UserSerializerForTweet):
     pass
 
+
+class UserSerializerForLike(UserSerializerForTweet):
+    pass
+
 # 检测username, password是否存在
+
+
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
