@@ -6,7 +6,7 @@ from tweets.models import Tweet
 from tweets.api.serializers import (
     TweetSerializer,
     TweetCreateSerializer,
-    TweetSerializerWithComments,
+    TweetSerializerWithDetail,
 )
 from newsfeeds.services import NewsFeedService
 from util.decorators import required_params
@@ -44,12 +44,19 @@ class TweetViewSet(viewsets.GenericViewSet,
             .order_by('-created_at')
         # many=True，表示序列化的是一个list of dict
         # 每个dict都是一条tweet的序列化数据
-        serializer = TweetSerializer(tweets, many=True)
+        serializer = TweetSerializer(
+            tweets,
+            context={'request': request},
+            many=True,
+        )
         return Response({'tweets': serializer.data})
 
     def retrieve(self, request, *args, **kwargs):
         tweet = self.get_object()
-        return Response(TweetSerializerWithComments(tweet).data)
+        return Response(TweetSerializerWithDetail(
+            tweet,
+            context={'request': request},
+        ).data)
 
     def create(self, request, *args, **kwargs):
         serializer = TweetCreateSerializer(
@@ -72,5 +79,8 @@ class TweetViewSet(viewsets.GenericViewSet,
         NewsFeedService.fanout_to_followers(tweet)
         # 展示创建后的tweet时，用TweetSerialzier
         return Response(
-            TweetSerializer(instance=tweet).data,
+            TweetSerializer(
+                instance=tweet,
+                context={'request': request},
+            ).data,
             status=status.HTTP_201_CREATED)

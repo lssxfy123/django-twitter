@@ -22,7 +22,11 @@ class NewsFeedViewSet(viewsets.GenericViewSet):
     def list(self, request):
         # 不像之前的Seraializer都是提供request.data，这次序列化的数据不是
         # 从request中传递的，而是需要从数据库中查找
-        serializer = NewsFeedSerializer(self.get_queryset(), many=True)
+        serializer = NewsFeedSerializer(
+            self.get_queryset(),
+            context={'request': request},
+            many=True,
+        )
         return Response({
             "newsfeeds": serializer.data,
         }, status=status.HTTP_200_OK)
