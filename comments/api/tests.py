@@ -5,6 +5,9 @@ from django.utils import timezone
 from comments.models import Comment
 
 COMMENT_URL = '/api/comments/'
+TWEET_LIST_API = '/api/tweets/'
+TWEET_DETAIL_API = '/api/tweets/{}/'
+NEWSFEED_LIST_API = '/api/newsfeeds/'
 
 
 class CommentApiTests(TestCase):
