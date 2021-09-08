@@ -47,14 +47,19 @@ class BaseLikeSerializerForCreateAndCancel(serializers.ModelSerializer):
 
 class LikeSerializerForCreate(BaseLikeSerializerForCreateAndCancel):
 
-    def create(self, validated_data):
+    # 返回值有之前的Like对象变成了(instance, created)
+    # created表示是否创建成功Like对象，如果之前已创建，是直接get的，
+    # created就是False
+    # 这样因为viewset发送notification时，需要知道这个赞是创建的，
+    # 还是get到的，只有创建的赞才会发送notification
+    def get_or_create(self):
+        validated_data= self.validated_data
         model_class = self._get_model_class(validated_data)
-        instance, _ = Like.objects.get_or_create(
+        return Like.objects.get_or_create(
             content_type=ContentType.objects.get_for_model(model_class),
             object_id=validated_data['object_id'],
             user=self.context['request'].user,
         )
-        return instance
 
 
 class LikeSerializerForCancel(BaseLikeSerializerForCreateAndCancel):
