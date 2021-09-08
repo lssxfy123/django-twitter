@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from likes.models import Like
 from util.decorators import required_params
 from rest_framework.decorators import action
+from inbox.services import NotificationService
 
 
 class LikeViewSet(viewsets.GenericViewSet):
@@ -18,7 +19,7 @@ class LikeViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = LikeSerializerForCreate
 
-    @required_params(request_attr='data', params=['content_type', 'object_id'])
+    @required_params(method='POST', params=['content_type', 'object_id'])
     def create(self, request):
         serializer = LikeSerializerForCreate(
             data=request.data,
@@ -29,14 +30,16 @@ class LikeViewSet(viewsets.GenericViewSet):
                 'errors': serializer.errors,
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        like = serializer.save()
+        like, created = serializer.get_or_create()
+        if created:
+            NotificationService.send_like_notification(like)
         return Response(
             LikeSerializer(like).data,
             status=status.HTTP_201_CREATED
         )
 
     @action(methods=['POST'], detail=False)
-    @required_params(request_attr='data', params=['content_type', 'object_id'])
+    @required_params(method='POST', params=['content_type', 'object_id'])
     def cancel(self, request):
         serializer = LikeSerializerForCancel(
             data=request.data,
