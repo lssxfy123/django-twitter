@@ -7,7 +7,7 @@ from likes.api.serializers import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from likes.models import Like
-from util.decorators import required_params
+from utils.decorators import required_params
 from rest_framework.decorators import action
 from inbox.services import NotificationService
 

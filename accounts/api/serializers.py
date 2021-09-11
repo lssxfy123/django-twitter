@@ -1,37 +1,57 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework import exceptions
+from accounts.models import UserProfile
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email']
-
-
-# 针对不同的需求，设置不同的serializer
-class UserSerializerForTweet(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username']
 
 
-# 和UserSerializerForTweet内容相同，取了一个别名
-class UserSerializerForFriendship(UserSerializerForTweet):
+class UserSerializerForProfile(UserSerializer):
+    # 通过user.profile.nickname来获取nickname
+    nickname = serializers.CharField(source='profile.nickname')
+    avatar_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'nickname', 'avatar_url',)
+
+    def get_avatar_url(self, obj):
+        if obj.profile.avatar:
+            # avatar是FileField，它有一个url属性
+            return obj.profile.avatar.url
+        return None
+
+
+# 针对不同的需求，设置不同的serializer
+class UserSerializerForTweet(UserSerializerForProfile):
     pass
 
 
-class UserSerializerForComment(UserSerializerForTweet):
+# 和UserSerializerForProfile内容相同，取了一个别名
+class UserSerializerForFriendship(UserSerializerForProfile):
     pass
 
 
-class UserSerializerForLike(UserSerializerForTweet):
+class UserSerializerForComment(UserSerializerForProfile):
     pass
 
-# 检测username, password是否存在
+
+class UserSerializerForLike(UserSerializerForProfile):
+    pass
+
+
+class UserProfileSerializerForUpdate(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ('nickname', 'avatar')
 
 
 class LoginSerializer(serializers.Serializer):
+    # 检测username, password是否存在
     username = serializers.CharField()
     password = serializers.CharField()
 

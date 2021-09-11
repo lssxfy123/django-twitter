@@ -7,6 +7,8 @@ from accounts.api.serializers import (
     UserSerializer,
     LoginSerializer,
     SignupSerializer,
+    UserProfileSerializerForUpdate,
+    UserSerializerForProfile,
 )
 from django.contrib.auth import (
    login as django_login,
@@ -14,7 +16,8 @@ from django.contrib.auth import (
    authenticate as django_authenticate,
 )
 from rest_framework.permissions import AllowAny
-# Create your views here.
+from accounts.models import UserProfile
+from utils.permissions import IsObjectOwner
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -22,8 +25,8 @@ class UserViewSet(viewsets.ModelViewSet):
     API endpoint that allow usert to be viewed or edited
     """
     queryset = User.objects.all().order_by('-date_joined')
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserSerializerForProfile
+    permission_classes = [permissions.IsAdminUser]
 
 
 class AccountViewSet(viewsets.ViewSet):
@@ -100,3 +103,11 @@ class AccountViewSet(viewsets.ViewSet):
             "user": UserSerializer(instance=user).data,
         }, status=status.HTTP_200_OK)
 
+
+class UserProfileViewSet(
+    viewsets.GenericViewSet,
+    viewsets.mixins.UpdateModelMixin,  # 使用默认的update方法
+):
+    queryset = UserProfile
+    permission_classes = (permissions.IsAuthenticated, IsObjectOwner,)
+    serializer_class = UserProfileSerializerForUpdate
