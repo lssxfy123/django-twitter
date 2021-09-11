@@ -134,3 +134,62 @@ class NotificationApiTests(TestCase):
         self.assertEqual(response.data['count'], 1)
         response = self.linghu_client.get(NOTIFICATION_URL, {'unread': False})
         self.assertEqual(response.data['count'], 1)
+
+    def test_update(self):
+        # dongxie点赞linghu的tweet
+        self.dongxie_client.post(LIKE_URL, {
+            'content_type': 'tweet',
+            'object_id': self.linghu_tweet.id,
+        })
+        comment = self.create_comment(self.linghu, self.linghu_tweet)
+        self.dongxie_client.post(LIKE_URL, {
+            'content_type': 'comment',
+            'object_id': comment.id,
+        })
+
+        # Notification模型的反查机制
+        notification = self.linghu.notifications.first()
+        url = '/api/notifications/{}/'.format(notification.id)
+
+        # post不行，需要使用put
+        response = self.dongxie_client.post(url, {'unread': False})
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+        # 只有登录用户才能改变notification状态
+        response = self.anonymous_client.put(url, {'unread': False})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 因为queryset是按照当前登陆用户来筛选，所以会返回404，而不是403
+        # dongxie没有这条notification
+        response = self.dongxie_client.put(url, {'unread': False})
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # 标记为已读
+        response = self.linghu_client.put(url, {'unread': False})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        unread_url = '/api/notifications/unread-count/'
+        response = self.linghu_client.get(unread_url)
+        # 两条notification，标记1条为已读，还有1条未读
+        self.assertEqual(response.data['unread_count'], 1)
+
+        # 标记为未读
+        response = self.linghu_client.put(url, {'unread': True})
+        response = self.linghu_client.get(unread_url)
+        self.assertEqual(response.data['unread_count'], 2)
+
+        # unread是必须参数
+        response = self.linghu_client.put(url, {'verb': 'newverb'})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # 无法修改其它信息
+        response = self.linghu_client.put(
+            url, {
+                'verb': 'newverb',
+                'unread': False,
+            })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        notification.refresh_from_db()
+        self.assertNotEqual(notification.verb, 'newverb')
