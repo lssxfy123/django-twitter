@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from util.time_helpers import utc_now
+from utils.time_helpers import utc_now
 from likes.models import Like
 from django.contrib.contenttypes.models import ContentType
 

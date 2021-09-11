@@ -9,7 +9,7 @@ from tweets.api.serializers import (
     TweetSerializerWithDetail,
 )
 from newsfeeds.services import NewsFeedService
-from util.decorators import required_params
+from utils.decorators import required_params
 
 
 class TweetViewSet(viewsets.GenericViewSet,
