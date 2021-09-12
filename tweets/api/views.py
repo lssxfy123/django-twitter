@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from tweets.models import Tweet
 from tweets.api.serializers import (
     TweetSerializer,
-    TweetCreateSerializer,
+    TweetSerializerForCreate,
     TweetSerializerWithDetail,
 )
 from newsfeeds.services import NewsFeedService
@@ -17,7 +17,7 @@ class TweetViewSet(viewsets.GenericViewSet,
                    viewsets.mixins.ListModelMixin):
     # 如果调用get_queryset()会从queryset中查找
     queryset = Tweet.objects.all()
-    serializer_class = TweetCreateSerializer
+    serializer_class = TweetSerializerForCreate
 
     def get_permissions(self):
         """
@@ -59,7 +59,7 @@ class TweetViewSet(viewsets.GenericViewSet,
         ).data)
 
     def create(self, request, *args, **kwargs):
-        serializer = TweetCreateSerializer(
+        serializer = TweetSerializerForCreate(
             data=request.data,
             context={'request': request}
         )
