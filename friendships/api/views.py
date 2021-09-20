@@ -9,6 +9,7 @@ from friendships.api.serializers import (
     FollowingSerializer,
     FriendshipSerializerForCreate,
 )
+from utils.paginations import FriendshipPagination
 
 
 class FriendshipViewSet(viewsets.GenericViewSet):
@@ -22,12 +23,17 @@ class FriendshipViewSet(viewsets.GenericViewSet):
     """
     queryset = User.objects.all()
     serializer_class = FriendshipSerializerForCreate
+    pagination_class = FriendshipPagination
 
     def list(self, request):
         if 'to_user_id' in request.query_params:
             friendships = Friendship.objects\
                 .filter(to_user_id=request.query_params['to_user_id'])
-            serializer = FollowerSerializer(friendships, many=True)
+            serializer = FollowerSerializer(
+                friendships,
+                many=True,
+                context={'request': request}
+            )
             return Response({
                 'followers': serializer.data
             })
@@ -35,7 +41,11 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         if 'from_user_id' in request.query_params:
             friendships = Friendship.objects\
                 .filter(from_user_id=request.query_params['from_user_id'])
-            serializer = FollowingSerializer(friendships, many=True)
+            serializer = FollowingSerializer(
+                friendships,
+                many=True,
+                context={'request': request}
+            )
             return Response({
                 'followings': serializer.data
             })
@@ -53,10 +63,13 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         """
         friendships = Friendship.objects.filter(to_user_id=pk)\
             .order_by('-created_at')
-        serializer = FollowerSerializer(friendships, many=True)
-        return Response({
-            'followers': serializer.data
-        }, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(friendships)
+        serializer = FollowerSerializer(
+            page,
+            many=True,
+            context={'request': request}
+        )
+        return self.get_paginated_response(serializer.data)
 
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
     def followings(self, request, pk):
@@ -65,10 +78,13 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         """
         friendships = Friendship.objects.filter(from_user_id=pk)\
             .order_by('-created_at')
-        serializer = FollowingSerializer(friendships, many=True)
-        return Response({
-            'followings': serializer.data
-        }, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(friendships)
+        serializer = FollowingSerializer(
+            page,
+            many=True,
+            context={'request': request}
+        )
+        return self.get_paginated_response(serializer.data)
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
     def follow(self, request, pk):
@@ -107,7 +123,12 @@ class FriendshipViewSet(viewsets.GenericViewSet):
 
         # 会调用FriendshipSerializerForCreate中的create()
         instance = serializer.save()
-        return Response(FollowingSerializer(instance=instance).data, status=status.HTTP_201_CREATED)
+        return Response(
+            FollowingSerializer(
+                instance=instance,
+                context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
     def unfollow(self, request, pk):
