@@ -10,6 +10,7 @@ from tweets.api.serializers import (
 )
 from newsfeeds.services import NewsFeedService
 from utils.decorators import required_params
+from utils.paginations import EndlessPagination
 
 
 class TweetViewSet(viewsets.GenericViewSet,
@@ -18,6 +19,7 @@ class TweetViewSet(viewsets.GenericViewSet,
     # 如果调用get_queryset()会从queryset中查找
     queryset = Tweet.objects.all()
     serializer_class = TweetSerializerForCreate
+    pagination_class = EndlessPagination
 
     def get_permissions(self):
         """
@@ -42,6 +44,8 @@ class TweetViewSet(viewsets.GenericViewSet,
         """
         tweets = Tweet.objects.filter(user_id=request.query_params['user_id'])\
             .order_by('-created_at')
+        # 最终会调用EndlessPagination中的paginate_queryset()
+        tweets = self.paginate_queryset(tweets)
         # many=True，表示序列化的是一个list of dict
         # 每个dict都是一条tweet的序列化数据
         serializer = TweetSerializer(
@@ -49,7 +53,9 @@ class TweetViewSet(viewsets.GenericViewSet,
             context={'request': request},
             many=True,
         )
-        return Response({'tweets': serializer.data})
+        # 查看get_paginated_response()的源码可以看出
+        # 最终会调用EndlessPagination中的get_paginated_response()
+        return self.get_paginated_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         tweet = self.get_object()

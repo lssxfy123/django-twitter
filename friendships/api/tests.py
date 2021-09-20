@@ -1,4 +1,4 @@
-from utils.paginations import FriendshipPagination
+from friendships.paginations import FriendshipPagination
 from friendships.models import Friendship
 from rest_framework.test import APIClient
 from rest_framework.views import status
