@@ -3,6 +3,7 @@ from rest_framework.test import APIClient
 from rest_framework.views import status
 from tweets.models import Tweet, TweetPhoto
 from django.core.files.uploadedfile import SimpleUploadedFile
+from utils.paginations import EndlessPagination
 
 
 # 注意尾部要加上'/'，否则会报301 redirect
@@ -34,16 +35,16 @@ class TweetApiTests(TestCase):
         response = self.anonymous_client.get(TWEET_LIST_API, {
             'user_id': self.user1.id})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['tweets']), 3)
+        self.assertEqual(len(response.data['results']), 3)
 
         response = self.anonymous_client.get(TWEET_LIST_API, {
             'user_id': self.user2.id})
-        self.assertEqual(len(response.data['tweets']), 2)
+        self.assertEqual(len(response.data['results']), 2)
 
         # 检测返回的tweets是否是按照创建时间的倒序来排列的
         # Tweet模型中id是PrimaryKey，是自增数字，user是外键
-        self.assertEqual(response.data['tweets'][0]['id'], self.tweet2[1].id)
-        self.assertEqual(response.data['tweets'][1]['id'], self.tweet2[0].id)
+        self.assertEqual(response.data['results'][0]['id'], self.tweet2[1].id)
+        self.assertEqual(response.data['results'][1]['id'], self.tweet2[0].id)
 
     def test_create_api(self):
         # 发tweet必须登陆
@@ -165,3 +166,74 @@ class TweetApiTests(TestCase):
         profile = self.user1.profile
         self.assertEqual(response.data['user']['nickname'], profile.nickname)
         self.assertEqual(response.data['user']['avatar_url'], None)
+
+    def test_pagination(self):
+        page_size = EndlessPagination.page_size
+
+        # create page_size * 2 tweets
+        # we have created self.tweets1 in setUp
+        for i in range(page_size * 2 - len(self.tweets1)):
+            self.tweets1.append(
+                self.create_tweet(self.user1, 'tweet{}'.format(i))
+            )
+
+        # 按创建时间降序排列
+        tweets = self.tweets1[::-1]
+
+        # 拉取第一页tweets
+        response = self.user1_client.get(
+            TWEET_LIST_API,
+            {'user_id': self.user1.id}
+        )
+        self.assertEqual(response.data["has_next_page"], True)
+        self.assertEqual(len(response.data["results"]), page_size)
+        self.assertEqual(response.data["results"][0]["id"], tweets[0].id)
+        self.assertEqual(response.data["results"][1]["id"], tweets[1].id)
+        self.assertEqual(
+            response.data["results"][page_size - 1]["id"],
+            tweets[page_size - 1].id
+        )
+
+        # 拉取第二页
+        response = self.user1_client.get(
+            TWEET_LIST_API, {
+                'user_id': self.user1.id,
+                'created_at__lt': tweets[page_size - 1].created_at
+            }
+        )
+        self.assertEqual(response.data["has_next_page"], False)
+        self.assertEqual(len(response.data["results"]), page_size)
+        self.assertEqual(
+            response.data["results"][0]["id"],
+            tweets[page_size].id
+        )
+        self.assertEqual(
+            response.data["results"][1]["id"],
+            tweets[page_size + 1].id
+        )
+        self.assertEqual(
+            response.data["results"][page_size - 1]["id"],
+            tweets[page_size * 2 - 1].id
+        )
+
+        # 拉取最新的tweets
+        response = self.user1_client.get(
+            TWEET_LIST_API, {
+                'user_id': self.user1.id,
+                'created_at__gt': tweets[0].created_at
+            }
+        )
+        self.assertEqual(response.data["has_next_page"], False)
+        self.assertEqual(len(response.data["results"]), 0)
+
+        # 创建一个新的tweet
+        new_tweet = self.create_tweet(self.user1, 'a new tweet come in')
+        response = self.user1_client.get(
+            TWEET_LIST_API, {
+                'user_id': self.user1.id,
+                'created_at__gt': tweets[0].created_at
+            }
+        )
+        self.assertEqual(response.data["has_next_page"], False)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], new_tweet.id)
