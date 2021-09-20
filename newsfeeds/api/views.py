@@ -3,11 +3,13 @@ from rest_framework.permissions import IsAuthenticated
 from newsfeeds.models import NewsFeed
 from newsfeeds.api.serializers import NewsFeedSerializer
 from rest_framework.response import Response
+from utils.paginations import EndlessPagination
 
 
 class NewsFeedViewSet(viewsets.GenericViewSet):
     # 新鲜事只能当前登录用户查看，所以要验证登录
     permission_classes = [IsAuthenticated]
+    pagination_class = EndlessPagination
 
     def get_queryset(self):
         """
@@ -22,11 +24,10 @@ class NewsFeedViewSet(viewsets.GenericViewSet):
     def list(self, request):
         # 不像之前的Seraializer都是提供request.data，这次序列化的数据不是
         # 从request中传递的，而是需要从数据库中查找
+        queryset = self.paginate_queryset(self.get_queryset())
         serializer = NewsFeedSerializer(
-            self.get_queryset(),
+            queryset,
             context={'request': request},
             many=True,
         )
-        return Response({
-            "newsfeeds": serializer.data,
-        }, status=status.HTTP_200_OK)
+        return self.get_paginated_response(serializer.data)
