@@ -10,6 +10,7 @@ from friendships.api.serializers import (
     FriendshipSerializerForCreate,
 )
 from friendships.paginations import FriendshipPagination
+from friendships.services import FriendshipService
 
 
 class FriendshipViewSet(viewsets.GenericViewSet):
@@ -123,6 +124,12 @@ class FriendshipViewSet(viewsets.GenericViewSet):
 
         # 会调用FriendshipSerializerForCreate中的create()
         instance = serializer.save()
+        
+        # 第一种触发删除cache某个key的做法，在follow和unfollow时进行cache删除
+        # 存在的问题是，需要明确知道哪些地方对Friendship模型对应的表单进行了修改
+        # 如果有遗漏，可能就会没有删除对应的cache，另外通过localhost/admin去创建
+        # Friendship时，不会调用follow和unfollow，所以也不会进行cache删除
+        # FriendshipService.invalidate_following_cache(request.user.id)
         return Response(
             FollowingSerializer(
                 instance=instance,
@@ -153,4 +160,6 @@ class FriendshipViewSet(viewsets.GenericViewSet):
             from_user=request.user,
             to_user=pk
         ).delete()
+
+        # FriendshipService.invalidate_following_cache(request.user.id)
         return Response({'success': True, 'deleted': deleted})

@@ -6,12 +6,19 @@ from comments.models import Comment
 from likes.models import Like
 from rest_framework.test import APIClient
 from newsfeeds.models import NewsFeed
+from django.core.cache import caches
 
 
 class TestCase(DjangoTestCase):
     """
     将测试中使用的一些公共方法抽取到一个公共类中
     """
+
+    def clear_cache(self):
+        """
+        将放大cache中的key全部清除掉
+        """
+        caches['testing'].clear()
 
     # 未登陆的匿名客户端
     # 添加装饰器property可以把anonymous_client()方法当属性使用
