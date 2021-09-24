@@ -1,4 +1,10 @@
 from friendships.models import Friendship
+from django.conf import settings
+from django.core.cache import caches
+from twitter.cache import FOLLOWINGS_PATTERN
+
+
+cache = caches['testing'] if settings.TESTING else caches['default']
 
 
 class FriendshipService:
@@ -52,8 +58,31 @@ class FriendshipService:
         return [friendship.from_user for friendship in friendships]
 
     @classmethod
-    def has_followed(cls, from_user, to_user):
-        return Friendship.objects.filter(
-            from_user=from_user,
-            to_user=to_user,
-        ).exists()
+    def get_following_user_id_set(cls, from_user_id):
+        # Memcached如果内存不够多，导致key的访问速度变慢，会删除掉部分不常用的key
+        # 常用的是LRU缓存机制
+        key = FOLLOWINGS_PATTERN.format(user_id=from_user_id)
+        user_id_set = cache.get(key)
+        # memcached中存在
+        if user_id_set is not None:
+            return user_id_set
+
+        # 获取from_user_id所关注的所有人
+        # 一般不会缓存关注to_user_id的所有人，因为对于明星用户来说，关注他的所有人
+        # 会非常多，比如有1亿粉丝的用户，而且它会变化的频率会非常快，这样会频繁导致
+        # 缓存刷新
+        friendships = Friendship.objects.filter(from_user_id=from_user_id)
+        # 存储一个set，是方便查找，查找时间复杂度为O(1)
+        # 如果存储list，则是O(n)
+        user_id_set = set([friendship.to_user_id for friendship in friendships])
+        cache.set(key, user_id_set)
+        return user_id_set
+
+    @classmethod
+    def invalidate_following_cache(cls, from_user_id):
+        """
+        手动废止掉某个缓存中的key
+        如果不手动废止，key会根据settings中配置的或set时设置的TIMEOUT来自动废止
+        """
+        key = FOLLOWINGS_PATTERN.format(user_id=from_user_id)
+        cache.delete(key)

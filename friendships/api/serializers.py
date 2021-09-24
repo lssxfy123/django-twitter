@@ -6,7 +6,32 @@ from rest_framework.exceptions import ValidationError
 from friendships.services import FriendshipService
 
 
-class FollowerSerializer(serializers.ModelSerializer):
+class FollowingUserIdSetMixin:
+    """
+    公用的插件类
+    """
+
+    @property
+    def following_user_id_set(self: serializers.ModelSerializer):
+        """
+        获取当前登录用户所关注的所有好友的user id，从Memcached中或者数据库中获取
+        并且存储到serializer对象中，相当于进一步缓存，由Memcached中缓存到了当前对象中
+        由于serializer对象生存周期只在一次http请求中，所以它的缓存不需要考虑是否刷新
+        的问题，当request请求结束后自然就销毁掉了
+        """
+        if self.context['request'].user.is_anonymous:
+            return {}
+
+        if hasattr(self, '_cached_following_user_id_set'):
+            return self._cached_following_user_id_set
+        user_id_set = FriendshipService.get_following_user_id_set(
+            self.context['request'].user.id,
+        )
+        setattr(self, '_cached_following_user_id_set', user_id_set)
+        return user_id_set
+
+
+class FollowerSerializer(serializers.ModelSerializer, FollowingUserIdSetMixin):
     """
     可以通过source=xxx指定去访问每个model instance的xxx方法或属性
     即model_instance.xxx来获得数据
@@ -23,18 +48,13 @@ class FollowerSerializer(serializers.ModelSerializer):
         fields = ('user', 'created_at', 'has_followed')
 
     def get_has_followed(self, obj):
-        if self.context['request'].user.is_anonymous:
-            return False
-
-        # <TODO> 这个部分会对每个 object 都去执行一次 SQL 查询，速度会很慢，如何优化呢？
-        # 我们将在后序的课程中解决这个问题
-        return FriendshipService.has_followed(
-            self.context['request'].user,
-            obj.from_user,
-        )
+        """
+        利用缓存优化查询
+        """
+        return obj.from_user_id in self.following_user_id_set
 
 
-class FollowingSerializer(serializers.ModelSerializer):
+class FollowingSerializer(serializers.ModelSerializer, FollowingUserIdSetMixin):
     user = UserSerializerForFriendship(source='to_user')
     created_at = serializers.DateTimeField()
     has_followed = serializers.SerializerMethodField()
@@ -44,12 +64,7 @@ class FollowingSerializer(serializers.ModelSerializer):
         fields = ('user', 'created_at', 'has_followed')
 
     def get_has_followed(self, obj):
-        if self.context['request'].user.is_anonymous:
-            return False
-        return FriendshipService.has_followed(
-            self.context['request'].user,
-            obj.to_user,
-        )
+        return obj.to_user_id in self.following_user_id_set
 
 
 class FriendshipSerializerForCreate(serializers.ModelSerializer):
