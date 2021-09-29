@@ -16,6 +16,7 @@ USER_PROFILE_DETAIL_URL = '/api/profiles/{}/'
 class AccountApiTest(TestCase):
 
     def setUp(self):
+        self.clear_cache()
         # 这个函数是重载了父类的函数
         # 这个函数会在每个 test function 执行的时候被执行
         # 所以这里要放的内容是大部分test function都需要的

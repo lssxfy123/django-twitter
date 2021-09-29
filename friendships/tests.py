@@ -26,7 +26,8 @@ class FriendshipServiceTests(TestCase):
 
         # FriendshipService.invalidate_following_cache(self.linghu.id)
 
-        user_id_set = FriendshipService.get_following_user_id_set(self.linghu.id)
+        user_id_set = FriendshipService\
+            .get_following_user_id_set(self.linghu.id)
         self.assertSetEqual(user_id_set, {user1.id, user2.id, self.dongxie.id})
 
         Friendship.objects.filter(

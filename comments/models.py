@@ -3,6 +3,7 @@ from tweets.models import Tweet
 from django.contrib.auth.models import User
 from likes.models import Like
 from django.contrib.contenttypes.models import ContentType
+from accounts.services import UserService
 
 
 class Comment(models.Model):
@@ -34,3 +35,7 @@ class Comment(models.Model):
             self.content,
             self.tweet_id,  # 这里要指明tweet_id，如果直接用tweet，会调用Tweet的__str__
         )
+
+    @property
+    def cached_user(self):
+        return UserService.get_user_through_cache(self.user_id)
