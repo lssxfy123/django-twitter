@@ -10,7 +10,8 @@ from tweets.services import TweetService
 
 
 class TweetSerializer(serializers.ModelSerializer):
-    user = UserSerializerForTweet()
+    # 使用缓存中的user object
+    user = UserSerializerForTweet(source='cached_user')
     # 是否被赞， 需要实现一个get_has_liked()方法
     # SerializerMethodField()不是原本就存在的，需要通过
     # 如计算等方式才能获取的属性

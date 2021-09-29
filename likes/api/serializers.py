@@ -8,7 +8,8 @@ from django.contrib.contenttypes.models import ContentType
 
 
 class LikeSerializer(serializers.ModelSerializer):
-    user = UserSerializerForLike()
+    # source中指定从Like model中取一个cached_user的函数
+    user = UserSerializerForLike(source='cached_user')
 
     class Meta:
         model = Like

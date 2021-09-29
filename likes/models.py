@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from accounts.services import UserService
 
 
 class Like(models.Model):
@@ -50,3 +51,8 @@ class Like(models.Model):
             self.content_type,
             self.object_id,
         )
+
+    @property
+    def cached_user(self):
+        # 这里直接用user_id，不要写成self.user.id，这样会产生一个数据库query
+        return UserService.get_user_through_cache(self.user_id)

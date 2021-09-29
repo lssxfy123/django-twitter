@@ -1,4 +1,4 @@
-def invalidate_following_cache(sender, instance, **kwargs):
+def friendship_changed(sender, instance, **kwargs):
     """
     instance就是创建或删除的Friendship模型对象
     """

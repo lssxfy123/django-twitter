@@ -4,6 +4,7 @@ from utils.time_helpers import utc_now
 from likes.models import Like
 from django.contrib.contenttypes.models import ContentType
 from tweets.constants import TweetPhotoStatus, TWEET_PHOTO_STATUS_CHOICES
+from accounts.services import UserService
 
 
 # 在mysql数据库中存储的表为tweets_tweet
@@ -58,6 +59,10 @@ class Tweet(models.Model):
             user=self.user,
             content=self.content
         )
+
+    @property
+    def cached_user(self):
+        return UserService.get_user_through_cache(self.user_id)
 
 
 class TweetPhoto(models.Model):
