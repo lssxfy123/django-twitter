@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save, pre_delete
-from accounts.listeners import user_changed, profile_changed
+from accounts.listeners import profile_changed
+from utils.listeners import invalidate_object_cache
 
 
 class UserProfile(models.Model):
@@ -53,8 +54,8 @@ def get_profile(user):
 User.profile = property(get_profile)
 
 # signal机制
-pre_delete.connect(user_changed, sender=User)
-post_save.connect(user_changed, sender=User)
+pre_delete.connect(invalidate_object_cache, sender=User)
+post_save.connect(invalidate_object_cache, sender=User)
 
 pre_delete.connect(profile_changed, sender=UserProfile)
 post_save.connect(profile_changed, sender=UserProfile)
