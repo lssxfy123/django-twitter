@@ -201,6 +201,17 @@ CACHES = {
     },
 }
 
+# Redis
+# 安装方法: sudo apt-get install redis
+# 然后安装 redis 的 python 客户端： pip install redis
+REDIS_HOST = '127.0.0.1'
+REDIS_PORT = 6379
+# 正常运行使用数据库0，测试使用数据库1
+REDIS_DB = 0 if TESTING else 1
+# 超时时间
+REDIS_KEY_EXPIRE_TIME = 7 * 86400  # in seconds
+
+
 try:
     from .local_settings import *
 except:
