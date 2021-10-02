@@ -7,6 +7,7 @@ from likes.models import Like
 from rest_framework.test import APIClient
 from newsfeeds.models import NewsFeed
 from django.core.cache import caches
+from utils.redis_client import RedisClient
 
 
 class TestCase(DjangoTestCase):
@@ -19,6 +20,7 @@ class TestCase(DjangoTestCase):
         将放大cache中的key全部清除掉
         """
         caches['testing'].clear()
+        RedisClient.clear()
 
     # 未登陆的匿名客户端
     # 添加装饰器property可以把anonymous_client()方法当属性使用

@@ -16,12 +16,12 @@ class MemcachedHelper:
         # cache hit
         obj = cache.get(key)
         if obj:
-            print('get {} from cache'.format(key))
+            # print('get {} from cache'.format(key))
             return obj
 
         # cache miss
         obj = model_class.objects.get(id=object_id)
-        print('set {} in cache'.format(key))
+        # print('set {} in cache'.format(key))
         cache.set(key, obj)
         return obj
 
