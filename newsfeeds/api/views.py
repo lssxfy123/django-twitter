@@ -21,7 +21,7 @@ class NewsFeedViewSet(viewsets.GenericViewSet):
 
     # NewsFeedViesSet不需要提供增删改查，只需要提供一个list就行了
     def list(self, request):
-        # 不像之前的Seraializer都是提供request.data，这次序列化的数据不是
+        # 不像之前的Serializer都是提供request.data，这次序列化的数据不是
         # 从request中传递的，而是需要从数据库中查找
         queryset = self.paginate_queryset(self.get_queryset())
         serializer = NewsFeedSerializer(
