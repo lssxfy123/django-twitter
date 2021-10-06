@@ -11,6 +11,7 @@ from tweets.api.serializers import (
 from newsfeeds.services import NewsFeedService
 from utils.decorators import required_params
 from utils.paginations import EndlessPagination
+from tweets.services import TweetService
 
 
 class TweetViewSet(viewsets.GenericViewSet,
@@ -42,8 +43,12 @@ class TweetViewSet(viewsets.GenericViewSet,
         Tweet模型中user_id是一个外键，django会默认给它创建索引，但索引中不
         保证created_at是降序的，所以需要一个user_id和created_at的联合索引
         """
-        tweets = Tweet.objects.filter(user_id=request.query_params['user_id'])\
-            .order_by('-created_at')
+        # tweets = Tweet.objects
+        # .filter(user_id=request.query_params['user_id'])\
+        #     .order_by('-created_at')
+
+        # 从Redis缓存中读取tweets
+        tweets = TweetService.get_cached_tweets(request.query_params['user_id'])
         # 最终会调用EndlessPagination中的paginate_queryset()
         tweets = self.paginate_queryset(tweets)
         # many=True，表示序列化的是一个list of dict
