@@ -54,7 +54,7 @@ class LikeSerializerForCreate(BaseLikeSerializerForCreateAndCancel):
     # 这样因为viewset发送notification时，需要知道这个赞是创建的，
     # 还是get到的，只有创建的赞才会发送notification
     def get_or_create(self):
-        validated_data= self.validated_data
+        validated_data = self.validated_data
         model_class = self._get_model_class(validated_data)
         return Like.objects.get_or_create(
             content_type=ContentType.objects.get_for_model(model_class),

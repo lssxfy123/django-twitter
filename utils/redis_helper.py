@@ -58,3 +58,47 @@ class RedisHelper:
         # 这里使用lpush，添加到头部，保证是按时间降序的
         conn.lpush(key, serialized_data)
         conn.ltrim(key, 0, settings.REDIS_LIST_LENGTH_LIMIT - 1)
+
+    @classmethod
+    def get_count_key(cls, obj, attr):
+        return '{}.{}:{}'.format(obj.__class__.__name__, attr, obj.id)
+
+    @classmethod
+    def incr_count(cls, obj, attr):
+        conn = RedisClient.get_connection()
+        key = cls.get_count_key(obj, attr)
+        if not conn.exists(key):
+            # 回填到cache中
+            # 不执行+1操作，因为调用incr_count之前，已经在数据库中执行了+1
+            # 并且obj重新从数据库加载了
+            obj.refresh_from_db()
+            conn.set(key, getattr(obj, attr))
+            conn.expire(key, settings.REDIS_KEY_EXPIRE_TIME)
+            return getattr(obj, attr)
+        return conn.incr(key)
+
+    @classmethod
+    def decr_count(cls, obj, attr):
+        conn = RedisClient.get_connection()
+        key = cls.get_count_key(obj, attr)
+        if not conn.exists(key):
+            obj.refresh_from_db()
+            # 不执行-1操作
+            conn.set(key, getattr(obj, attr))
+            conn.expire(key, settings.REDIS_KEY_EXPIRE_TIME)
+            return getattr(obj, attr)
+        return conn.decr(key)
+
+    @classmethod
+    def get_count(cls, obj, attr):
+        conn = RedisClient.get_connection()
+        key = cls.get_count_key(obj, attr)
+        count = conn.get(key)
+        if count is not None:
+            return int(count)
+
+        # obj有可能是从cache中获取的，要重新从数据库中加载
+        obj.refresh_from_db()
+        count = getattr(obj, attr)
+        conn.set(key, count)
+        return count
