@@ -7,6 +7,7 @@ from likes.api.serializers import LikeSerializer
 from tweets.constants import TWEET_PHOTOS_UPLOAD_LIMIT
 from rest_framework.exceptions import ValidationError
 from tweets.services import TweetService
+from utils.redis_helper import RedisHelper
 
 
 class TweetSerializer(serializers.ModelSerializer):
@@ -34,11 +35,14 @@ class TweetSerializer(serializers.ModelSerializer):
         )
 
     def get_likes_count(self, obj):
-        return obj.like_set.count()
+        # N + Queries
+        # N如果是db queries-->不可接受
+        # N如果是redis/memached queries-->可以接受
+        return RedisHelper.get_count(obj, 'likes_count')
 
     def get_comments_count(self, obj):
         # comment_set是django定义的反查机制
-        return obj.comment_set.count()
+        return RedisHelper.get_count(obj, 'comments_count')
 
     def get_has_liked(self, obj):
         return LikeService.has_liked(self.context["request"].user, obj)
