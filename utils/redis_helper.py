@@ -10,7 +10,11 @@ class RedisHelper:
         conn = RedisClient.get_connection()
 
         serialized_list = []
-        for obj in objects:
+        for obj in objects[:settings.REDIS_LIST_LENGTH_LIMIT]:
+            # 最多只 cache REDIS_LIST_LENGTH_LIMIT 那么多个 objects
+            # 超过这个限制的 objects，就去数据库里读取。
+            # 一般这个限制会比较大，比如 1000
+            # 因此翻页翻到 1000 的用户访问量会比较少，从数据库读取也不是大问题
             serialized_data = DjangoModelSerializer.serialize(obj)
             serialized_list.append(serialized_data)
 
@@ -53,3 +57,4 @@ class RedisHelper:
         serialized_data = DjangoModelSerializer.serialize(obj)
         # 这里使用lpush，添加到头部，保证是按时间降序的
         conn.lpush(key, serialized_data)
+        conn.ltrim(key, 0, settings.REDIS_LIST_LENGTH_LIMIT - 1)

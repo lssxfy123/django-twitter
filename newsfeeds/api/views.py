@@ -24,8 +24,13 @@ class NewsFeedViewSet(viewsets.GenericViewSet):
     def list(self, request):
         # 不像之前的Serializer都是提供request.data，这次序列化的数据不是
         # 从request中传递的，而是需要从数据库中查找
-        newsfeeds = NewsFeedService.get_cached_newsfeeds(request.user.id)
-        page = self.paginate_queryset(newsfeeds)
+        cached_newsfeeds = NewsFeedService.get_cached_newsfeeds(request.user.id)
+        page = self.paginator.paginate_cached_list(cached_newsfeeds, request)
+        if page is None:
+            queryset = NewsFeed.objects.filter(user=request.user)\
+                .order_by('-created_at')
+            page = self.paginate_queryset(queryset)
+
         serializer = NewsFeedSerializer(
             page,
             context={'request': request},

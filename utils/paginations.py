@@ -1,6 +1,7 @@
 from rest_framework.pagination import BasePagination
 from rest_framework.response import Response
 from dateutil import parser
+from django.conf import settings
 
 
 class EndlessPagination(BasePagination):
@@ -48,9 +49,27 @@ class EndlessPagination(BasePagination):
         self.has_next_page = len(reverse_ordered_list) > index + self.page_size
         return reverse_ordered_list[index: index + self.page_size]
 
+    def paginate_cached_list(self, cached_list, request):
+        paginated_list = self.paginate_ordered_list(cached_list, request)
+        # 如果上翻页，paginated_list里是所有的最新的数据，直接返回
+        if 'created_at__gt' in request.query_params:
+            return paginated_list
+
+        # 如果还有下一页，说明cached_list里的数据还没有取完，也直接返回
+        if self.has_next_page:
+            return paginated_list
+
+        # 如果cached_list的长度不足redis缓存设置的最大限制，说明cached_list里已经
+        # 是所有数据了，数据库中也没有更多数据，否则会添加到cached_list里直到满足限制
+        # 长度
+        if len(cached_list) < settings.REDIS_LIST_LENGTH_LIMIT:
+            return paginated_list
+
+        # 如果进入这里，说明可能存在在数据库里没有 load 在 cache 里的数据，
+        # 需要直接去数据库查询
+        return None
+
     def paginate_queryset(self, queryset, request, view=None):
-        if type(queryset) == list:
-            return self.paginate_ordered_list(queryset, request)
 
         if 'created_at__gt' in request.query_params:
             # created_at__gt 用于下拉刷新的时候加载最新的内容进来
