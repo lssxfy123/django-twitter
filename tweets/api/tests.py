@@ -4,6 +4,8 @@ from rest_framework.views import status
 from tweets.models import Tweet, TweetPhoto
 from django.core.files.uploadedfile import SimpleUploadedFile
 from utils.paginations import EndlessPagination
+from django.conf import settings
+from tweets.services import TweetService
 
 
 # 注意尾部要加上'/'，否则会报301 redirect
@@ -26,6 +28,10 @@ class TweetApiTests(TestCase):
 
         self.user2 = self.create_user('user2', 'user2@jiuzhang.com')
         self.tweet2 = [self.create_tweet(self.user2) for _ in range(2)]
+
+        self.linghu = self.create_user('linghu')
+        self.linghu_client = APIClient()
+        self.linghu_client.force_authenticate(self.linghu)
 
     def test_list_api(self):
         # 必须带有user_id
@@ -238,3 +244,61 @@ class TweetApiTests(TestCase):
         self.assertEqual(response.data["has_next_page"], False)
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], new_tweet.id)
+
+    def _paginate_to_get_tweets(self, client):
+        # 一直翻页到最底部
+        response = client.get(TWEET_LIST_API, {'user_id': self.linghu.id})
+        results = response.data['results']
+        while response.data['has_next_page']:
+            created_at__lt = response.data['results'][-1]['created_at']
+            response = client.get(TWEET_LIST_API, {
+                'user_id': self.linghu.id,
+                'created_at__lt': created_at__lt
+            })
+            results.extend(response.data['results'])
+        return results
+
+    def test_redis_list_limit(self):
+        list_limit = settings.REDIS_LIST_LENGTH_LIMIT
+        page_size = 10
+        tweets = []
+
+        for i in range(list_limit + page_size):
+            tweet = self.create_tweet(
+                user=self.linghu,
+                content='feed{}'.format(i)
+            )
+
+            tweets.append(tweet)
+        tweets = tweets[::-1]
+
+        # 最多获取list_limit的缓存数据
+        cached_tweets = TweetService.get_cached_tweets(self.linghu.id)
+        self.assertEqual(len(cached_tweets), list_limit)
+
+        # 数据库中所有的tweets
+        queryset = Tweet.objects.filter(user=self.linghu)
+        self.assertEqual(len(queryset), list_limit + page_size)
+
+        # 翻页一直翻到底
+        results = self._paginate_to_get_tweets(self.linghu_client)
+        self.assertEqual(len(results), list_limit + page_size)
+        for i in range(list_limit + page_size):
+            self.assertEqual(tweets[i].id, results[i]['id'])
+
+        # linghu新发一条tweet
+        new_tweet = self.create_tweet(self.linghu, 'a new tweet')
+        TweetService.push_tweet_to_cache(new_tweet)
+
+        def _test_tweets_after_new_tweet_pushed():
+            results = self._paginate_to_get_tweets(self.linghu_client)
+            self.assertEqual(len(results), list_limit + page_size + 1)
+            self.assertEqual(results[0]['id'], new_tweet.id)
+            for i in range(list_limit + page_size):
+                self.assertEqual(tweets[i].id, results[i + 1]['id'])
+
+        _test_tweets_after_new_tweet_pushed()
+
+        # 缓存失效
+        self.clear_cache()
+        _test_tweets_after_new_tweet_pushed()

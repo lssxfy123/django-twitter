@@ -48,13 +48,27 @@ class TweetViewSet(viewsets.GenericViewSet,
         #     .order_by('-created_at')
 
         # 从Redis缓存中读取tweets
-        tweets = TweetService.get_cached_tweets(request.query_params['user_id'])
-        # 最终会调用EndlessPagination中的paginate_queryset()
-        tweets = self.paginate_queryset(tweets)
+        user_id = request.query_params['user_id']
+        cached_tweets = TweetService.get_cached_tweets(user_id)
+        # 这里要使用self.paginator，因为paginate_cached_list是自定义的函数
+        # ViewSet中没有相应的函数
+        page = self.paginator.paginate_cached_list(cached_tweets, request)
+        # 直接从数据库读取
+        if page is None:
+            # 这句查询会被翻译为
+            # select * from twitter_tweets
+            # where user_id = xxx
+            # order by created_at desc
+            # 这句 SQL 查询会用到 user 和 created_at 的联合索引
+            # 单纯的 user 索引是不够的
+            queryset = Tweet.objects.filter(user_id=user_id)\
+                .order_by('-created_at')
+            page = self.paginate_queryset(queryset)
+
         # many=True，表示序列化的是一个list of dict
         # 每个dict都是一条tweet的序列化数据
         serializer = TweetSerializer(
-            tweets,
+            page,
             context={'request': request},
             many=True,
         )
