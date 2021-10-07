@@ -25,6 +25,18 @@ class Tweet(models.Model):
     # 创建Tweet对象时自动添加当前日期，并不再变化
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # 新增的 field 一定要设置 null=True，否则 default = 0，如果执行Migration
+    # 会遍历整个表单去设置
+    # 假如tweet表单中已经有1亿条数据了，相当于是用for循环遍历这一亿条数据去
+    # 设置likes_count
+    # 导致 Migration 过程非常慢，从而把整张表单锁死，这时如果用户创建新的tweet
+    # 就无法成功
+    # 设置null=True，执行完Migration后，新创建的tweet默认likes_count就是0了
+    # 对于之前的既有数据，它还是null，这时就需要用脚本去回填likes_count了
+    # 使用脚本时可以分批执行，并且可以选择在用户不活跃的时段执行
+    likes_count = models.IntegerField(default=0, null=True)
+    comments_count = models.IntegerField(default=0, null=True)
+
     class Meta:
         # 书写格式是将需要联合索引的字段组成一个二元组
         # 后面要加一个逗号，表示可能会有其它联合索引
