@@ -58,6 +58,13 @@ class FriendshipService:
         return [friendship.from_user for friendship in friendships]
 
     @classmethod
+    def get_follower_ids(cls, to_user_id):
+        friendships = Friendship.objects.filter(to_user_id=to_user_id)
+        # 不能产生N+1 Queries，因为from_user_id就在Friendship表中
+        # 一次query就会把所有符合条件的from_user_id都查出来
+        return [friendship.from_user_id for friendship in friendships]
+
+    @classmethod
     def get_following_user_id_set(cls, from_user_id):
         # Memcached如果内存不够多，导致key的访问速度变慢，会删除掉部分不常用的key
         # 常用的是LRU缓存机制
