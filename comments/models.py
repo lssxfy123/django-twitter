@@ -14,6 +14,7 @@ class Comment(models.Model):
     content = models.CharField(max_length=140)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    likes_count = models.IntegerField(default=0, null=True)
 
     class Meta:
         # 获取某个tweet下所有的评论

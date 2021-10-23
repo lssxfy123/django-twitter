@@ -12,10 +12,12 @@ from newsfeeds.services import NewsFeedService
 from utils.decorators import required_params
 from utils.paginations import EndlessPagination
 from tweets.services import TweetService
+from utils.memchached_helper import MemcachedHelper
 
 
 class TweetViewSet(viewsets.GenericViewSet,
                    viewsets.mixins.CreateModelMixin,
+                   viewsets.mixins.RetrieveModelMixin,
                    viewsets.mixins.ListModelMixin):
     # 如果调用get_queryset()会从queryset中查找
     queryset = Tweet.objects.all()
@@ -76,8 +78,14 @@ class TweetViewSet(viewsets.GenericViewSet,
         # 最终会调用EndlessPagination中的get_paginated_response()
         return self.get_paginated_response(serializer.data)
 
-    def retrieve(self, request, *args, **kwargs):
-        tweet = self.get_object()
+    def retrieve(self, request, pk, *args, **kwargs):
+        # tweet = self.get_object()
+        tweet = MemcachedHelper.get_object_through_cache(Tweet, pk)
+        if tweet is None:
+            return Response({
+                'success': False,
+                'message': 'id:{} not exist.'.format(pk),
+            }, status=status.HTTP_404_NOT_FOUND)
         return Response(TweetSerializerWithDetail(
             tweet,
             context={'request': request},

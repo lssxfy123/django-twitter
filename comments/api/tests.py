@@ -187,7 +187,7 @@ class CommentApiTests(TestCase):
         for i in range(2):
             _, client = self.create_user_and_client('user{}'.format(i))
             client.post(COMMENT_URL, data)
-            response =client.get(tweet_url)
+            response = client.get(tweet_url)
             self.assertEqual(response.data['comments_count'], i + 1)
             self.tweet.refresh_from_db()
             self.assertEqual(self.tweet.comments_count, i + 1)

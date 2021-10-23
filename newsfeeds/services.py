@@ -1,4 +1,5 @@
 from newsfeeds.models import NewsFeed
+from newsfeeds.tasks import fanout_newsfeeds_task
 from friendships.services import FriendshipService
 from twitter.cache import USER_NEWSFEEDS_PATTERN
 from utils.redis_helper import RedisHelper
@@ -8,30 +9,17 @@ class NewsFeedService:
 
     @classmethod
     def fanout_to_followers(cls, tweet):
-        followers = FriendshipService.get_followers(tweet.user)
-
-        # 下面这种写法是错误的，因为它会产生N次Queries操作，会非常耗时
-        # 不允许for + query，工程代码中
-        # 通常Web服务和DB不在同一台机器，甚至同一台机架上
-        """
-        for follower in followers:
-            NewsFeed.objects.create(user=follower, tweet=tweet)
-        """
-
-        # 使用bulk_create，会把insert语句合成一条
-        # 先生成所有的NewsFeed
-        newsfeeds = [
-            NewsFeed(user=follower, tweet=tweet)
-            for follower in followers
-        ]
-
-        # 插入一条自身的NewsFeed，默认自己是自己的follower
-        newsfeeds.append(NewsFeed(user=tweet.user, tweet=tweet))
-        NewsFeed.objects.bulk_create(newsfeeds)
-
-        # bulk_create不会触发post_save的信号，所以需要手动触发
-        for newsfeed in newsfeeds:
-            cls.push_newsfeed_to_cache(newsfeed)
+        # 这句话的作用是，在 celery 配置的 message queue 中创建一个 fanout 的任务
+        # 参数是 tweet。任意一个在监听 message queue 的 worker 进程都有机会拿到这个任务
+        # worker 进程中会执行 fanout_newsfeeds_task 里的代码来实现一个异步的任务处理
+        # 如果这个任务需要处理 10s 则这 10s 会花费在 worker 进程上，而不是花费在用户发 tweet
+        # 的过程中。所以这里 .delay 操作会马上执行马上结束从而不影响用户的正常操作。
+        # （因为这里只是创建了一个任务，把任务信息放在了 message queue 里，并没有真正执行这个函数）
+        # 要注意的是，delay 里的参数必须是可以被 celery serialize 的值，因为 worker 进程是一个独立
+        # 的进程，甚至在不同的机器上，没有办法知道当前 web 进程的某片内存空间里的值是什么。所以
+        # 我们只能把 tweet.id 作为参数传进去，而不能把 tweet 传进去。因为 celery 并不知道
+        # 如何 serialize Tweet。
+        fanout_newsfeeds_task.delay(tweet.id)
 
     @classmethod
     def get_cached_newsfeeds(cls, user_id):
