@@ -285,3 +285,38 @@ class LikeApiTests(TestCase):
         response = self.dongxie_client.get(newsfeed_url)
         self.assertEqual(response.data['results'][0]['tweet']['likes_count'], 3)
 
+    def test_likes_count_in_comment_with_cache(self):
+        tweet = self.create_tweet(self.linghu)
+        comment = self.create_comment(self.linghu, tweet)
+
+        data = {'content_type': 'comment', 'object_id': comment.id}
+        for i in range(3):
+            _, client = self.create_user_and_client('somone{}'.format(i))
+            # 点赞
+            client.post(LIKE_BASE_URL, data)
+            # check comment list api
+            response = client.get(COMMENT_LIST_API, {'tweet_id': tweet.id})
+            self.assertEqual(response.data['comments'][0]['likes_count'], i + 1)
+            comment.refresh_from_db()
+            self.assertEqual(comment.likes_count, i + 1)
+
+        self.dongxie_client.post(LIKE_BASE_URL, data)
+        # get方法执行时会从redis中读取likes_count
+        # tweet.refresh_from_db()从数据库重新加载，是为了进行验证
+        response = self.dongxie_client.get(
+            COMMENT_LIST_API,
+            {'tweet_id': tweet.id}
+        )
+        self.assertEqual(response.data['comments'][0]['likes_count'], 4)
+        comment.refresh_from_db()
+        self.assertEqual(comment.likes_count, 4)
+
+        # dongxie canceled likes
+        self.dongxie_client.post(LIKE_BASE_URL + 'cancel/', data)
+        comment.refresh_from_db()
+        self.assertEqual(comment.likes_count, 3)
+        response = self.dongxie_client.get(
+            COMMENT_LIST_API,
+            {'tweet_id': tweet.id}
+        )
+        self.assertEqual(response.data['comments'][0]['likes_count'], 3)

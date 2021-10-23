@@ -20,7 +20,7 @@ class MemcachedHelper:
             return obj
 
         # cache miss
-        obj = model_class.objects.get(id=object_id)
+        obj = model_class.objects.filter(id=object_id).first()
         # print('set {} in cache'.format(key))
         cache.set(key, obj)
         return obj
