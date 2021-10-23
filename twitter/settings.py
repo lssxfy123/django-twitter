@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+from kombu import Queue
 from pathlib import Path
 import sys
 
@@ -153,6 +154,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # 设置存储用户上传文件的 storage 用什么系统
+# 本地runserver调试时，需要屏蔽掉这行代码，因为没有配置AWS S3
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # 单元测试不应该产生外部依赖，所以python manage.py test 文件要存储在本地
@@ -225,8 +227,12 @@ CELERY_TIMEZONE = 'UTC'
 # testing测试时，不要以异步的方式执行任务，而是以同步的方式执行
 CELERY_TASK_ALWAYS_EAGER = TESTING
 
+CELERY_QUEUES = (
+    Queue('default', routing_key='default'),
+    Queue('newsfeeds', routing_key='newsfeeds'),
+)
 
-try:
-    from .local_settings import *
-except:
-    pass
+# try:
+#     from .local_settings import *
+# except:
+#     pass
