@@ -10,6 +10,8 @@ from friendships.api.serializers import (
     FriendshipSerializerForCreate,
 )
 from friendships.paginations import FriendshipPagination
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 
 class FriendshipViewSet(viewsets.GenericViewSet):
@@ -56,6 +58,8 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         )
 
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
+    @method_decorator(
+        ratelimit(key='user_or_ip', rate='3/s', method='GET', block=True))
     def followers(self, request, pk):
         """
         获取有谁关注了user_id=pk的用户
@@ -72,6 +76,8 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(serializer.data)
 
     @action(methods=['GET'], detail=True, permission_classes=[AllowAny])
+    @method_decorator(
+        ratelimit(key='user_or_ip', rate='3/s', method='GET', block=True))
     def followings(self, request, pk):
         """
         获取user_id=pk的用户关注了谁
@@ -87,6 +93,8 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(serializer.data)
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
+    @method_decorator(
+        ratelimit(key='user', rate='10/s', method='POST', block=True))
     def follow(self, request, pk):
         """
         创建好友关系，关注user_id=pk的用户
@@ -137,6 +145,8 @@ class FriendshipViewSet(viewsets.GenericViewSet):
         )
 
     @action(methods=['POST'], detail=True, permission_classes=[IsAuthenticated])
+    @method_decorator(
+        ratelimit(key='user', rate='10/s', method='POST', block=True))
     def unfollow(self, request, pk):
         """
         取消关注user_id=pk的用户

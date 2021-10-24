@@ -13,6 +13,8 @@ from utils.decorators import required_params
 from utils.paginations import EndlessPagination
 from tweets.services import TweetService
 from utils.memchached_helper import MemcachedHelper
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 
 class TweetViewSet(viewsets.GenericViewSet,
@@ -78,6 +80,9 @@ class TweetViewSet(viewsets.GenericViewSet,
         # 最终会调用EndlessPagination中的get_paginated_response()
         return self.get_paginated_response(serializer.data)
 
+    # block=True，表示如果访问频率超限，则不进入下面的函数体了，也就是阻塞
+    @method_decorator(ratelimit(
+        key='user_or_ip', rate='5/s', method='GET', block=True))
     def retrieve(self, request, pk, *args, **kwargs):
         # tweet = self.get_object()
         tweet = MemcachedHelper.get_object_through_cache(Tweet, pk)
@@ -91,6 +96,10 @@ class TweetViewSet(viewsets.GenericViewSet,
             context={'request': request},
         ).data)
 
+    @method_decorator(ratelimit(
+        key='user', rate='1/s', method='POST', block=True))
+    @method_decorator(ratelimit(
+        key='user', rate='5/m', method='POST', block=True))
     def create(self, request, *args, **kwargs):
         serializer = TweetSerializerForCreate(
             data=request.data,

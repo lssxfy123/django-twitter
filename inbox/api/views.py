@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from notifications.models import Notification
 from utils.decorators import required_params
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 
 class NotificationViewSet(
@@ -30,6 +32,8 @@ class NotificationViewSet(
         return Notification.objects.filter(recipient=self.request.user)
 
     @action(methods=['GET'], detail=False, url_path='unread-count')
+    @method_decorator(
+        ratelimit(key='user', rate='3/s', method='GET', block=True))
     def unread_count(self, request):
         """
         指定了url_path，如果不指定则访问函数的url为/api/notifications/unread_count
@@ -39,6 +43,8 @@ class NotificationViewSet(
         return Response({'unread_count': count}, status=status.HTTP_200_OK)
 
     @action(methods=['POST'], detail=False, url_path='mark-all-as-read')
+    @method_decorator(
+        ratelimit(key='user', rate='3/s', method='POST', block=True))
     def mark_all_as_read(self, request):
         """
         标记所有为已读
@@ -55,6 +61,8 @@ class NotificationViewSet(
             status=status.HTTP_200_OK)
 
     @required_params(method='PUT', params=['unread'])
+    @method_decorator(
+        ratelimit(key='user', rate='3/s', method='POST', block=True))
     def update(self, request, *args, **kwargs):
         # PUT /api/notifications/pk/
         # update对应@action中,detail=True
