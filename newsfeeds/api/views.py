@@ -4,6 +4,8 @@ from newsfeeds.models import NewsFeed
 from newsfeeds.api.serializers import NewsFeedSerializer
 from utils.paginations import EndlessPagination
 from newsfeeds.services import NewsFeedService
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 
 class NewsFeedViewSet(viewsets.GenericViewSet):
@@ -21,6 +23,8 @@ class NewsFeedViewSet(viewsets.GenericViewSet):
         return NewsFeed.objects.filter(user=self.request.user)
 
     # NewsFeedViesSet不需要提供增删改查，只需要提供一个list就行了
+    @method_decorator(
+        ratelimit(key='user', rate='5/s', method='GET', block=True))
     def list(self, request):
         # 不像之前的Serializer都是提供request.data，这次序列化的数据不是
         # 从request中传递的，而是需要从数据库中查找

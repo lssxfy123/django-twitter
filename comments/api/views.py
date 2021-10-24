@@ -10,6 +10,8 @@ from comments.api.serializers import (
 from comments.models import Comment
 from utils.decorators import required_params
 from inbox.services import NotificationService
+from django.utils.decorators import method_decorator
+from ratelimit.decorators import ratelimit
 
 
 class CommentViewSet(viewsets.GenericViewSet):
@@ -32,6 +34,8 @@ class CommentViewSet(viewsets.GenericViewSet):
         return [AllowAny()]
 
     @required_params(params=['tweet_id'])
+    @method_decorator(
+        ratelimit(key='user', rate='10/s', method='GET', block=True))
     def list(self, request, *args, **kwargs):
         # 第一种筛选方式
         # tweet_id = request.query_params["tweet_id"]
@@ -53,6 +57,8 @@ class CommentViewSet(viewsets.GenericViewSet):
             status=status.HTTP_200_OK
         )
 
+    @method_decorator(
+        ratelimit(key='user', rate='3/s', method='POST', block=True))
     def create(self, request):
         data = {
             'user_id': request.user.id,
@@ -75,6 +81,8 @@ class CommentViewSet(viewsets.GenericViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    @method_decorator(
+        ratelimit(key='user', rate='3/s', method='POST', block=True))
     def update(self, request, *args, **kwargs):
         """
         update()对应的是/api/comments/pk/，相当于@action中detail=True
@@ -102,6 +110,8 @@ class CommentViewSet(viewsets.GenericViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @method_decorator(
+        ratelimit(key='user', rate='5/s', method='POST', block=True))
     def destroy(self, request, *args, **kwargs):
         comment = self.get_object()
         comment.delete()
