@@ -1,0 +1,1 @@
+sudo bash hbase-2.4.7/bin/hbase-daemon.sh start thrift
