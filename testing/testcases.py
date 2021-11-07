@@ -9,9 +9,33 @@ from newsfeeds.models import NewsFeed
 from django.core.cache import caches
 from utils.redis_client import RedisClient
 from friendships.models import Friendship
+from django_hbase.models import HBaseModel
 
 
 class TestCase(DjangoTestCase):
+    hbase_tables_created = False
+
+    # 针对HBase的测试，需要自己重载setUp和tearDown，每个test调用时会先调用
+    # setUp，test结束时会调用tearDown
+    # 因为django不会自动创建HBase的表单并在测试结束后销毁掉它
+    # 如果HBase的Test自身还有setUp，就需要通过super()调用基类的setUp
+    def setUp(self):
+        self.clear_cache()
+        try:
+            self.hbase_tables_created = True
+            for hbase_model_class in HBaseModel.__subclasses__():
+                hbase_model_class.create_table()
+        except Exception:
+            self.tearDown()
+            # 抛出异常，以便于查找
+            raise
+
+    def tearDown(self):
+        if not self.hbase_tables_created:
+            return
+        for hbase_model_class in HBaseModel.__subclasses__():
+            hbase_model_class.drop_table()
+
     """
     将测试中使用的一些公共方法抽取到一个公共类中
     """

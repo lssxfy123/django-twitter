@@ -7,6 +7,7 @@ jdk-8u301-linux-x64.tar.gz
 hbase-2.4.7-bin.tar.gz
 thrift-0.14.2.tar.gz
 thrift-0.14.2/
+tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
