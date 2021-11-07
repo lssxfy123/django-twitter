@@ -16,5 +16,5 @@ class IntegerField(HBaseField):
 class TimestampField(HBaseField):
     field_type = 'timestamp'
 
-    def __init__(self, *args, auto_now_add=False, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
