@@ -8,8 +8,9 @@ from rest_framework.test import APIClient
 from newsfeeds.models import NewsFeed
 from django.core.cache import caches
 from utils.redis_client import RedisClient
-from friendships.models import Friendship
 from django_hbase.models import HBaseModel
+from friendships.services import FriendshipService
+from gatekeeper.models import GateKeeper
 
 
 class TestCase(DjangoTestCase):
@@ -46,6 +47,7 @@ class TestCase(DjangoTestCase):
         """
         caches['testing'].clear()
         RedisClient.clear()
+        GateKeeper.set_kv('switch_friendship_to_hbase', 'percent',100)
 
     # 未登陆的匿名客户端
     # 添加装饰器property可以把anonymous_client()方法当属性使用
@@ -70,7 +72,8 @@ class TestCase(DjangoTestCase):
             password=password)
 
     def create_friendship(self, from_user, to_user):
-        return Friendship.objects.create(from_user=from_user, to_user=to_user)
+        return FriendshipService.follow(
+            from_user_id=from_user.id, to_user_id=to_user.id)
 
     def create_tweet(self, user, content=None):
         if content is None:
