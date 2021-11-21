@@ -4,15 +4,29 @@ from accounts.api.serializers import UserSerializerForFriendship
 from friendships.models import Friendship
 from rest_framework.exceptions import ValidationError
 from friendships.services import FriendshipService
+from accounts.services import UserService
 
 
-class FollowingUserIdSetMixin:
+class BaseFriendshipSerializer(serializers.Serializer):
     """
-    公用的插件类
+    公用的Serializer基类
     """
+    user = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    has_followed = serializers.SerializerMethodField()
 
-    @property
-    def following_user_id_set(self: serializers.ModelSerializer):
+    # 这个Serializer基类是用来做渲染的，不用实现update和create
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    # 类似C++中的虚函数，基类中的某个方法是抽象方法，python中就抛出未实现的error
+    def get_user_id(self, obj):
+        raise NotImplementedError
+
+    def _get_following_user_id_set(self: serializers.ModelSerializer):
         """
         获取当前登录用户所关注的所有好友的user id，从Memcached中或者数据库中获取
         并且存储到serializer对象中，相当于进一步缓存，由Memcached中缓存到了当前对象中
@@ -30,41 +44,25 @@ class FollowingUserIdSetMixin:
         setattr(self, '_cached_following_user_id_set', user_id_set)
         return user_id_set
 
-
-class FollowerSerializer(serializers.ModelSerializer, FollowingUserIdSetMixin):
-    """
-    可以通过source=xxx指定去访问每个model instance的xxx方法或属性
-    即model_instance.xxx来获得数据
-    这里是指定user是from_user
-    """
-    user = UserSerializerForFriendship(source='cached_from_user')
-    created_at = serializers.DateTimeField()
-    has_followed = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Friendship
-        # fields中的字段会首先从FollowerSerializer中查找
-        # 如果找不到，就会从model指定的模型中查找
-        fields = ('user', 'created_at', 'has_followed')
-
     def get_has_followed(self, obj):
-        """
-        利用缓存优化查询
-        """
-        return obj.from_user_id in self.following_user_id_set
+        return self.get_user_id(obj)in self._get_following_user_id_set()
+
+    def get_user(self, obj):
+        user = UserService.get_user_by_id(self.get_user_id(obj))
+        return UserSerializerForFriendship(user).data
+
+    def get_created_at(self, obj):
+        return obj.created_at
 
 
-class FollowingSerializer(serializers.ModelSerializer, FollowingUserIdSetMixin):
-    user = UserSerializerForFriendship(source='cached_to_user')
-    created_at = serializers.DateTimeField()
-    has_followed = serializers.SerializerMethodField()
+class FollowerSerializer(BaseFriendshipSerializer):
+    def get_user_id(self, obj):
+        return obj.from_user_id
 
-    class Meta:
-        model = Friendship
-        fields = ('user', 'created_at', 'has_followed')
 
-    def get_has_followed(self, obj):
-        return obj.to_user_id in self.following_user_id_set
+class FollowingSerializer(BaseFriendshipSerializer):
+    def get_user_id(self, obj):
+        return obj.to_user_id
 
 
 class FriendshipSerializerForCreate(serializers.ModelSerializer):
@@ -92,7 +90,7 @@ class FriendshipSerializerForCreate(serializers.ModelSerializer):
     def create(self, validated_data):
         from_user_id = validated_data['from_user_id']
         to_user_id = validated_data['to_user_id']
-        friendship = Friendship.objects.create(
+        friendship = FriendshipService.follow(
             from_user_id=from_user_id,
             to_user_id=to_user_id
         )
