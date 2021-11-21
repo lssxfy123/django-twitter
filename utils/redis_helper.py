@@ -10,11 +10,8 @@ class RedisHelper:
         conn = RedisClient.get_connection()
 
         serialized_list = []
-        for obj in objects[:settings.REDIS_LIST_LENGTH_LIMIT]:
-            # 最多只 cache REDIS_LIST_LENGTH_LIMIT 那么多个 objects
-            # 超过这个限制的 objects，就去数据库里读取。
-            # 一般这个限制会比较大，比如 1000
-            # 因此翻页翻到 1000 的用户访问量会比较少，从数据库读取也不是大问题
+        # objects已经被截断了
+        for obj in objects:
             serialized_data = DjangoModelSerializer.serialize(obj)
             serialized_list.append(serialized_data)
 
@@ -26,6 +23,11 @@ class RedisHelper:
 
     @classmethod
     def load_objects(cls, key, queryset):
+        # 最多只 cache REDIS_LIST_LENGTH_LIMIT 那么多个 objects
+        # 超过这个限制的 objects，就去数据库里读取。
+        # 一般这个限制会比较大，比如 1000
+        # 因此翻页翻到 1000 的用户访问量会比较少，从数据库读取也不是大问题
+        queryset = queryset[:settings.REDIS_LIST_LENGTH_LIMIT]
         conn = RedisClient.get_connection()
 
         # 如果在cache里，就直接拿出来
@@ -48,6 +50,7 @@ class RedisHelper:
 
     @classmethod
     def push_object(cls, key, obj, queryset):
+        queryset = queryset[:settings.REDIS_LIST_LENGTH_LIMIT]
         conn = RedisClient.get_connection()
         if not conn.exists(key):
             # 如果key不存在，就直接从数据库load
