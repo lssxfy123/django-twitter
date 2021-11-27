@@ -8,3 +8,4 @@ from django_hbase.models.__init__ import xxx
 """
 from .fields import *
 from .hbase_models import *
+from .exceptions import *

@@ -12,7 +12,7 @@ from newsfeeds.services import NewsFeedService
 from utils.decorators import required_params
 from utils.paginations import EndlessPagination
 from tweets.services import TweetService
-from utils.memchached_helper import MemcachedHelper
+from utils.memcached_helper import MemcachedHelper
 from django.utils.decorators import method_decorator
 from ratelimit.decorators import ratelimit
 

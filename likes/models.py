@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from utils.memchached_helper import MemcachedHelper
+from utils.memcached_helper import MemcachedHelper
 from likes.listeners import incr_likes_count, decr_likes_count
 from django.db.models.signals import pre_delete, post_save
 
