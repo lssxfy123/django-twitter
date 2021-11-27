@@ -3,7 +3,7 @@ from tweets.models import Tweet
 from django.contrib.auth.models import User
 from likes.models import Like
 from django.contrib.contenttypes.models import ContentType
-from utils.memchached_helper import MemcachedHelper
+from utils.memcached_helper import MemcachedHelper
 from django.db.models.signals import pre_delete, post_save
 from comments.listeners import incr_comments_count, decr_comments_count
 

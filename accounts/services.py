@@ -3,7 +3,7 @@ from django.conf import settings
 from accounts.models import UserProfile
 from twitter.cache import USER_PROFILE_PATTER
 from django.contrib.auth.models import User
-from utils.memchached_helper import MemcachedHelper
+from utils.memcached_helper import MemcachedHelper
 
 cache = caches['testing'] if settings.TESTING else caches['default']
 
