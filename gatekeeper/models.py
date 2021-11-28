@@ -33,6 +33,10 @@ class GateKeeper:
         return cls.get(gk_name)['percent'] == 100
 
     @classmethod
+    def turn_on(cls, gk_name):
+        cls.set_kv(gk_name, 'percent', 100)
+
+    @classmethod
     def in_gk(cls, gk_name, user_id):
         """
         漏斗型开关：部分放开，例如放开20%，user_id % 100如果小于20，就表示可以使用

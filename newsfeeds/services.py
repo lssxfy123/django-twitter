@@ -1,8 +1,27 @@
-from newsfeeds.models import NewsFeed
+from newsfeeds.models import NewsFeed, HBaseNewsFeed
 from newsfeeds.tasks import fanout_newsfeeds_main_task
-from friendships.services import FriendshipService
 from twitter.cache import USER_NEWSFEEDS_PATTERN
 from utils.redis_helper import RedisHelper
+from gatekeeper.models import GateKeeper
+from utils.redis_serializers import DjangoModelSerializer, HBaseSerializer
+
+
+# 很有意思的懒惰加载，当调用lazy_load_newsfeeds(user_id=1)时
+# 无论是HBase还是Mysql的filter都不会执行，而是返回了一个函数对象
+# lazy_load_func = lazy_load_newsfeeds(user_id=1)
+# 只有调用lazy_load_func(limit=10)时，才会真正产生数据库请求
+# HBaseNewsFeed.filter肯定会产生数据库请求，因为它本身就没有懒惰加载
+# 注意django的语法NewsFeed.objects.filter()[:limit]不会产生数据库请求
+# 但也不需要再套一层list了，因为后续使用时，会真正触发加载，这个函数主要使
+# HBase能够懒惰加载
+def lazy_load_newsfeeds(user_id):
+    def _lazy_load(limit):
+        if GateKeeper.is_switch_on('switch_newsfeed_to_hbase'):
+            return HBaseNewsFeed.filter(
+                prefix=(user_id, None), limit=limit, reverse=True)
+        return NewsFeed.objects.filter(
+            user_id=user_id).order_by('-created_at')[:limit]
+    return _lazy_load
 
 
 class NewsFeedService:
@@ -20,19 +39,52 @@ class NewsFeedService:
         # 我们只能把 tweet.id 作为参数传进去，而不能把 tweet 传进去。因为 celery 并不知道
         # 如何 serialize Tweet。
         # 使用tweet_user_id，而不是tweet.user.id，这会多1次query
-        fanout_newsfeeds_main_task.delay(tweet.id, tweet.user_id)
+        fanout_newsfeeds_main_task.delay(
+            tweet.id, tweet.timestamp, tweet.user_id)
 
     @classmethod
     def get_cached_newsfeeds(cls, user_id):
-        # 懒惰加载，此时并不会执行sql query去访问数据库
-        queryset = NewsFeed.objects.filter(user_id=user_id)\
-            .order_by('-created_at')
+        # # 懒惰加载，此时并不会执行sql query去访问数据库
+        # queryset = NewsFeed.objects.filter(user_id=user_id)\
+        #     .order_by('-created_at')
         key = USER_NEWSFEEDS_PATTERN.format(user_id=user_id)
-        return RedisHelper.load_objects(key, queryset)
+        if GateKeeper.is_switch_on('switch_newsfeed_to_hbase'):
+            serializer = HBaseSerializer
+        else:
+            serializer = DjangoModelSerializer
+        return RedisHelper.load_objects(
+            key, lazy_load_newsfeeds(user_id), serializer=serializer)
 
     @classmethod
     def push_newsfeed_to_cache(cls, newsfeed):
-        queryset = NewsFeed.objects.filter(user_id=newsfeed.user_id)\
-            .order_by('-created_at')
         key = USER_NEWSFEEDS_PATTERN.format(user_id=newsfeed.user_id)
-        RedisHelper.push_object(key, newsfeed, queryset)
+        RedisHelper.push_object(
+            key, newsfeed, lazy_load_newsfeeds(newsfeed.user_id))
+
+    @classmethod
+    def create(cls, **kwargs):
+        if GateKeeper.is_switch_on('switch_newsfeed_to_hbase'):
+            newsfeed = HBaseNewsFeed.create(**kwargs)
+            # 需要手动触发 cache 更改，因为没有 listener 监听 hbase create
+            cls.push_newsfeed_to_cache(newsfeed)
+        else:
+            newsfeed = NewsFeed.objects.create(**kwargs)
+        return newsfeed
+
+    @classmethod
+    def batch_create(cls, batch_params):
+        """
+        批量创建NewsFeeds
+        """
+        if GateKeeper.is_switch_on('switch_newsfeed_to_hbase'):
+            newsfeeds = HBaseNewsFeed.batch_create(batch_params)
+        else:
+            newsfeeds = [NewsFeed(**params) for params in batch_params]
+            # 使用bulk_create，会把insert语句合成一条
+            # 先生成所有的NewsFeed
+            NewsFeed.objects.bulk_create(newsfeeds)
+
+        # bulk_create不会触发post_save的信号，所以需要手动触发
+        for newsfeed in newsfeeds:
+            NewsFeedService.push_newsfeed_to_cache(newsfeed)
+        return newsfeeds

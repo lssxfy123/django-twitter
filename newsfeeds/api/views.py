@@ -1,6 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from newsfeeds.models import NewsFeed
+from gatekeeper.models import GateKeeper
+from newsfeeds.models import NewsFeed, HBaseNewsFeed
 from newsfeeds.api.serializers import NewsFeedSerializer
 from utils.paginations import EndlessPagination
 from newsfeeds.services import NewsFeedService
@@ -31,9 +32,15 @@ class NewsFeedViewSet(viewsets.GenericViewSet):
         cached_newsfeeds = NewsFeedService.get_cached_newsfeeds(request.user.id)
         page = self.paginator.paginate_cached_list(cached_newsfeeds, request)
         if page is None:
-            queryset = NewsFeed.objects.filter(user=request.user)\
-                .order_by('-created_at')
-            page = self.paginate_queryset(queryset)
+            if GateKeeper.is_switch_on('switch_newsfeed_to_hbase'):
+                # HBaseNewsFeed的Row Key是('user_id, 'created_at')
+                # 所以前缀就是user_id
+                page = self.paginator.paginate_hbase(
+                    HBaseNewsFeed, (request.user.id,), request)
+            else:
+                queryset = NewsFeed.objects.filter(user=request.user)\
+                    .order_by('-created_at')
+                page = self.paginate_queryset(queryset)
 
         serializer = NewsFeedSerializer(
             page,
