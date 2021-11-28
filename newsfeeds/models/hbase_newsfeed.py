@@ -4,7 +4,7 @@ from tweets.models import Tweet
 from utils.memcached_helper import MemcachedHelper
 
 
-class NewsFeed(models.HBaseModel):
+class HBaseNewsFeed(models.HBaseModel):
     # 这里的user不是存储谁发了这条tweet，而是谁可以看到这条tweet
     # 某个用户登陆后，就会看到他能看到的新鲜事流
     # user_id带有时序性，越大的越靠后，需要进行reverse，避免hot，导致数据分布不均匀

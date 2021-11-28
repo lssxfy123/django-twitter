@@ -17,8 +17,14 @@ class EndlessPagination(BasePagination):
 
     def paginate_ordered_list(self, reverse_ordered_list, request):
         if 'created_at__gt' in request.query_params:
-            created_at__gt = \
-                parser.isoparse(request.query_params['created_at__gt'])
+            # 兼容iso格式和int格式
+            # Tweet中的created_at是iso格式，类似2021-11-28 00:00:00.0000
+            # 而HBase中则是一个int型数据
+            try:
+                created_at__gt = \
+                    parser.isoparse(request.query_params['created_at__gt'])
+            except ValueError:
+                created_at__gt = int(request.query_params['created_at__gt'])
             objects = []
             for obj in reverse_ordered_list:
                 if obj.created_at > created_at__gt:
@@ -30,8 +36,11 @@ class EndlessPagination(BasePagination):
 
         index = 0
         if 'created_at__lt' in request.query_params:
-            created_at__lt = \
-                parser.isoparse(request.query_params['created_at__lt'])
+            try:
+                created_at__lt = \
+                    parser.isoparse(request.query_params['created_at__lt'])
+            except ValueError:
+                created_at__lt = int(request.query_params['created_at__lt'])
             for index, obj in enumerate(reverse_ordered_list):
                 """
                 reverse_ordered_list是按created_at降序排列的

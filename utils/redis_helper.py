@@ -1,18 +1,19 @@
 from django.conf import settings
 from utils.redis_client import RedisClient
-from utils.redis_serializers import DjangoModelSerializer
+from django_hbase.models import HBaseModel
+from utils.redis_serializers import DjangoModelSerializer, HBaseSerializer
 
 
 class RedisHelper:
 
     @classmethod
-    def _load_objects_to_cache(cls, key, objects):
+    def _load_objects_to_cache(cls, key, objects, serializer):
         conn = RedisClient.get_connection()
 
         serialized_list = []
         # objects已经被截断了
         for obj in objects:
-            serialized_data = DjangoModelSerializer.serialize(obj)
+            serialized_data = serializer.serialize(obj)
             serialized_list.append(serialized_data)
 
         if serialized_list:
@@ -22,12 +23,8 @@ class RedisHelper:
             conn.expire(key, settings.REDIS_KEY_EXPIRE_TIME)  # 设置超时时间
 
     @classmethod
-    def load_objects(cls, key, queryset):
-        # 最多只 cache REDIS_LIST_LENGTH_LIMIT 那么多个 objects
-        # 超过这个限制的 objects，就去数据库里读取。
-        # 一般这个限制会比较大，比如 1000
-        # 因此翻页翻到 1000 的用户访问量会比较少，从数据库读取也不是大问题
-        queryset = queryset[:settings.REDIS_LIST_LENGTH_LIMIT]
+    def load_objects(
+            cls, key, lazy_load_objects, serializer=DjangoModelSerializer):
         conn = RedisClient.get_connection()
 
         # 如果在cache里，就直接拿出来
@@ -36,31 +33,41 @@ class RedisHelper:
             serialized_list = conn.lrange(key, 0, -1)
             objects = []
             for serialized_data in serialized_list:
-                serialized_obj = DjangoModelSerializer\
-                    .deserialize(serialized_data)
+                serialized_obj = serializer.deserialize(serialized_data)
                 objects.append(serialized_obj)
             return objects
 
         # 如果key不存在，就存入cache中
-        cls._load_objects_to_cache(key, queryset)
+        # 最多只 cache REDIS_LIST_LENGTH_LIMIT 那么多个 objects
+        # 超过这个限制的 objects，就去数据库里读取。
+        # 一般这个限制会比较大，比如 1000
+        # 因此翻页翻到 1000 的用户访问量会比较少，从数据库读取也不是大问题
+        objects = lazy_load_objects(settings.REDIS_LIST_LENGTH_LIMIT)
+        cls._load_objects_to_cache(key, objects, serializer)
         # 这里没有再去从cache中获取tweets，而是采用list
         # 此时list方法不会再次产生query查询，因为在_load_objects_to_cache
         # 中遍历了queryset并产生了query查询，queryset会缓存查询结果
-        return list(queryset)
+        return list(objects)
 
     @classmethod
-    def push_object(cls, key, obj, queryset):
-        queryset = queryset[:settings.REDIS_LIST_LENGTH_LIMIT]
+    def push_object(cls, key, obj, lazy_load_objects):
+        if isinstance(obj, HBaseModel):
+            serializer = HBaseSerializer
+        else:
+            serializer = DjangoModelSerializer
+
         conn = RedisClient.get_connection()
-        if not conn.exists(key):
-            # 如果key不存在，就直接从数据库load
-            # 不走单个push的方式加到cache里了
-            cls._load_objects_to_cache(key, queryset)
+        if conn.exists(key):
+            # 这里使用lpush，添加到头部，保证是按时间降序的
+            serialized_data = serializer.serialize(obj)
+            conn.lpush(key, serialized_data)
+            conn.ltrim(key, 0, settings.REDIS_LIST_LENGTH_LIMIT - 1)
             return
-        serialized_data = DjangoModelSerializer.serialize(obj)
-        # 这里使用lpush，添加到头部，保证是按时间降序的
-        conn.lpush(key, serialized_data)
-        conn.ltrim(key, 0, settings.REDIS_LIST_LENGTH_LIMIT - 1)
+
+        # 如果key不存在，就直接从数据库load
+        # 不走单个push的方式加到cache里了
+        objects = lazy_load_objects(settings.REDIS_LIST_LENGTH_LIMIT)
+        cls._load_objects_to_cache(key, objects, serializer)
 
     @classmethod
     def get_count_key(cls, obj, attr):
